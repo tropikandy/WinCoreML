@@ -1,0 +1,90 @@
+# Universal ML Runtime Configuration
+# Default configuration for production deployment
+
+# Service settings
+service:
+  pipe_name: "\\\\.\\pipe\\coremlwin_runtime"
+  max_clients: 32
+  buffer_size: 65536  # 64KB
+  timeout_ms: 30000
+
+# Cache settings
+cache:
+  directory: "./cache"
+  max_size_gb: 10
+  cleanup_interval_hours: 24
+  enable_compression: true
+
+# Logging settings
+logging:
+  level: "INFO"  # TRACE, DEBUG, INFO, WARNING, ERROR, FATAL
+  log_to_file: true
+  log_to_console: true
+  log_file: "${cache.directory}/coremlwin_runtime.log"
+  max_file_size_mb: 100
+  max_backup_count: 5
+
+# Model conversion settings
+converter:
+  python_executable: "python"
+  timeout_seconds: 300
+  default_opset: 14
+  enable_benchmarking: true
+
+# Benchmark settings
+benchmark:
+  warmup_iterations: 5
+  benchmark_iterations: 50
+  enabled_providers:
+    - "CPUExecutionProvider"
+    - "DmlExecutionProvider"
+    - "CUDAExecutionProvider"
+  timeout_per_provider_ms: 10000
+
+# Session pooling (future)
+session_pooling:
+  enabled: false  # Not implemented yet
+  default_pool_config:
+    min_sessions: 1
+    max_sessions: 4
+    initial_sessions: 1
+    idle_timeout_ms: 60000
+    auto_scale: true
+
+  # Per-model overrides
+  model_configs: {}
+  # Example:
+  #   "model_id_123":
+  #     min_sessions: 2
+  #     max_sessions: 8
+
+# Shared memory (future)
+shared_memory:
+  enabled: false  # Not implemented yet
+  threshold_bytes: 1048576  # 1MB
+  max_regions: 16
+  pool_size_mb: 1024  # 1GB total
+
+# Performance settings
+performance:
+  enable_profiling: false
+  metrics_interval_seconds: 60
+  export_prometheus: false
+  prometheus_port: 9090
+
+# Security settings
+security:
+  require_authentication: false
+  max_model_size_mb: 2048  # 2GB
+  allowed_model_formats:
+    - "onnx"
+    - "pytorch"
+    - "tensorflow"
+    - "coreml"
+
+# Development settings (override in dev mode)
+development:
+  log_level: "DEBUG"
+  enable_profiling: true
+  verbose_errors: true
+  disable_caching: false

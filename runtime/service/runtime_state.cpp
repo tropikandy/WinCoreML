@@ -3,6 +3,7 @@
  */
 
 #include "runtime_state.h"
+#include "../include/logger.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -14,6 +15,8 @@
 #endif
 
 namespace fs = std::filesystem;
+
+using namespace coremlwin;
 
 RuntimeState::RuntimeState()
     : initialized_(false)
@@ -34,12 +37,12 @@ CmwErrorCode RuntimeState::Initialize(const std::string& cache_dir) {
     try {
         fs::create_directories(cache_dir);
     } catch (const std::exception& e) {
-        std::cerr << "Failed to create cache directory: " << e.what() << std::endl;
+        LOG_ERROR << "Failed to create cache directory: " << e.what() << std::endl;
         return CMW_ERROR_CACHE_WRITE_FAILED;
     }
 
     initialized_ = true;
-    std::cout << "Runtime initialized. Cache dir: " << cache_dir_ << std::endl;
+    LOG_INFO << "Runtime initialized. Cache dir: " << cache_dir_ << std::endl;
 
     return CMW_SUCCESS;
 }
@@ -72,7 +75,7 @@ CmwErrorCode RuntimeState::RegisterModel(
         return response.error_code;
     }
 
-    std::cout << "Registering model: " << request.model_path << std::endl;
+    LOG_INFO << "Registering model: " << request.model_path << std::endl;
 
     // Check if file exists
     if (!fs::exists(request.model_path)) {
@@ -91,7 +94,7 @@ CmwErrorCode RuntimeState::RegisterModel(
 
     // Check if already registered
     if (registry_.HasModel(model_id)) {
-        std::cout << "Model already registered: " << model_id << std::endl;
+        LOG_DEBUG << "Model already registered: " << model_id << std::endl;
         response.error_code = CMW_SUCCESS;
         response.model_id = model_id;
         registry_.GetModel(model_id, response.metadata);
@@ -133,7 +136,7 @@ CmwErrorCode RuntimeState::RegisterModel(
     response.model_id = model_id;
     response.metadata = metadata;
 
-    std::cout << "Model registered successfully: " << model_id << std::endl;
+    LOG_INFO << "Model registered successfully: " << model_id << std::endl;
     return CMW_SUCCESS;
 }
 

@@ -96,6 +96,7 @@ target_include_directories(coremlwin_core
 set(SERVICE_SOURCES
     service/main.cpp
     service/logger.cpp
+    service/runtime_config.cpp
     service/model_registry.cpp
     service/runtime_state.cpp
     execution/onnx_executor.cpp
