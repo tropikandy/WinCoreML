@@ -400,45 +400,224 @@ CmwErrorCode RuntimeState::RunConverterWorker(
 
     std::cout << "Converter output: " << stdout_output << std::endl;
 
-    // Parse JSON response (basic parsing - in production use proper JSON library)
-    // For now, just check if output file exists and extract basic metadata
+    // Parse JSON response
+    // NOTE: Using basic string parsing. For production, use nlohmann/json library.
+    // To integrate: Download https://github.com/nlohmann/json/single_include/nlohmann/json.hpp
+    //               and include in project.
+
     if (!fs::exists(output_path)) {
         std::cerr << "Converter did not produce output file" << std::endl;
         return CMW_ERROR_MODEL_CONVERSION_FAILED;
     }
 
-    // Extract metadata from JSON response
-    // TODO: Use proper JSON parser (e.g., nlohmann/json)
-    // For now, use simple string parsing
-
     // Check for success
-    if (stdout_output.find("\"success\": true") != std::string::npos ||
-        stdout_output.find("\"success\":true") != std::string::npos) {
-
-        // Extract format
-        size_t format_pos = stdout_output.find("\"format\":");
-        if (format_pos != std::string::npos) {
-            size_t quote1 = stdout_output.find("\"", format_pos + 10);
-            size_t quote2 = stdout_output.find("\"", quote1 + 1);
-            if (quote1 != std::string::npos && quote2 != std::string::npos) {
-                metadata.model_format = stdout_output.substr(quote1 + 1, quote2 - quote1 - 1);
-            }
-        }
-
-        // Default values (full parsing would extract from JSON)
-        if (metadata.model_format.empty()) {
-            metadata.model_format = "unknown";
-        }
-        metadata.input_names = {"input"};  // Would be extracted from JSON
-        metadata.output_names = {"output"};
-
-        std::cout << "Conversion successful: " << metadata.model_format << " → ONNX" << std::endl;
-        return CMW_SUCCESS;
-
-    } else {
+    if (stdout_output.find("\"success\": true") == std::string::npos &&
+        stdout_output.find("\"success\":true") == std::string::npos) {
         std::cerr << "Converter reported failure" << std::endl;
         return CMW_ERROR_MODEL_CONVERSION_FAILED;
     }
+
+    // Extract model format
+    size_t format_pos = stdout_output.find("\"format\":");
+    if (format_pos != std::string::npos) {
+        size_t quote1 = stdout_output.find("\"", format_pos + 10);
+        size_t quote2 = stdout_output.find("\"", quote1 + 1);
+        if (quote1 != std::string::npos && quote2 != std::string::npos) {
+            metadata.model_format = stdout_output.substr(quote1 + 1, quote2 - quote1 - 1);
+        }
+    }
+
+    // Extract input names
+    size_t input_names_pos = stdout_output.find("\"input_names\":");
+    if (input_names_pos != std::string::npos) {
+        size_t array_start = stdout_output.find("[", input_names_pos);
+        size_t array_end = stdout_output.find("]", array_start);
+        if (array_start != std::string::npos && array_end != std::string::npos) {
+            std::string array_content = stdout_output.substr(array_start + 1, array_end - array_start - 1);
+            // Simple parsing: split by quotes
+            metadata.input_names.clear();
+            size_t pos = 0;
+            while ((pos = array_content.find("\"", pos)) != std::string::npos) {
+                size_t end = array_content.find("\"", pos + 1);
+                if (end != std::string::npos) {
+                    std::string name = array_content.substr(pos + 1, end - pos - 1);
+                    if (!name.empty()) {
+                        metadata.input_names.push_back(name);
+                    }
+                    pos = end + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Extract output names (same logic as input names)
+    size_t output_names_pos = stdout_output.find("\"output_names\":");
+    if (output_names_pos != std::string::npos) {
+        size_t array_start = stdout_output.find("[", output_names_pos);
+        size_t array_end = stdout_output.find("]", array_start);
+        if (array_start != std::string::npos && array_end != std::string::npos) {
+            std::string array_content = stdout_output.substr(array_start + 1, array_end - array_start - 1);
+            metadata.output_names.clear();
+            size_t pos = 0;
+            while ((pos = array_content.find("\"", pos)) != std::string::npos) {
+                size_t end = array_content.find("\"", pos + 1);
+                if (end != std::string::npos) {
+                    std::string name = array_content.substr(pos + 1, end - pos - 1);
+                    if (!name.empty()) {
+                        metadata.output_names.push_back(name);
+                    }
+                    pos = end + 1;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Extract benchmark results
+    size_t benchmark_pos = stdout_output.find("\"benchmark\":");
+    if (benchmark_pos != std::string::npos) {
+        // Extract fastest_provider
+        size_t fastest_pos = stdout_output.find("\"fastest_provider\":", benchmark_pos);
+        if (fastest_pos != std::string::npos) {
+            size_t quote1 = stdout_output.find("\"", fastest_pos + 19);
+            size_t quote2 = stdout_output.find("\"", quote1 + 1);
+            if (quote1 != std::string::npos && quote2 != std::string::npos) {
+                metadata.fastest_provider = stdout_output.substr(quote1 + 1, quote2 - quote1 - 1);
+            }
+        }
+
+        // Extract best_latency_ms
+        size_t best_latency_pos = stdout_output.find("\"best_latency_ms\":", benchmark_pos);
+        if (best_latency_pos != std::string::npos) {
+            size_t num_start = best_latency_pos + 18;
+            while (num_start < stdout_output.length() &&
+                   (stdout_output[num_start] == ' ' || stdout_output[num_start] == ':')) {
+                num_start++;
+            }
+            size_t num_end = num_start;
+            while (num_end < stdout_output.length() &&
+                   (isdigit(stdout_output[num_end]) || stdout_output[num_end] == '.')) {
+                num_end++;
+            }
+            if (num_end > num_start) {
+                std::string latency_str = stdout_output.substr(num_start, num_end - num_start);
+                try {
+                    metadata.best_latency_ms = std::stof(latency_str);
+                } catch (...) {}
+            }
+        }
+
+        // Extract speedup_vs_cpu
+        float speedup_vs_cpu = 1.0f;
+        size_t speedup_pos = stdout_output.find("\"speedup_vs_cpu\":", benchmark_pos);
+        if (speedup_pos != std::string::npos) {
+            size_t num_start = speedup_pos + 17;
+            while (num_start < stdout_output.length() &&
+                   (stdout_output[num_start] == ' ' || stdout_output[num_start] == ':')) {
+                num_start++;
+            }
+            size_t num_end = num_start;
+            while (num_end < stdout_output.length() &&
+                   (isdigit(stdout_output[num_end]) || stdout_output[num_end] == '.')) {
+                num_end++;
+            }
+            if (num_end > num_start) {
+                std::string speedup_str = stdout_output.substr(num_start, num_end - num_start);
+                try {
+                    speedup_vs_cpu = std::stof(speedup_str);
+                } catch (...) {}
+            }
+        }
+
+        // Extract results array (simplified - just get provider names and latencies)
+        size_t results_pos = stdout_output.find("\"results\":", benchmark_pos);
+        if (results_pos != std::string::npos) {
+            size_t array_start = stdout_output.find("[", results_pos);
+            size_t array_end = stdout_output.find("]", array_start);
+
+            if (array_start != std::string::npos && array_end != std::string::npos) {
+                std::string results_content = stdout_output.substr(array_start + 1, array_end - array_start - 1);
+
+                // Parse each result object (very basic parsing)
+                size_t obj_pos = 0;
+                while ((obj_pos = results_content.find("{", obj_pos)) != std::string::npos) {
+                    size_t obj_end = results_content.find("}", obj_pos);
+                    if (obj_end == std::string::npos) break;
+
+                    std::string obj_content = results_content.substr(obj_pos, obj_end - obj_pos + 1);
+
+                    ProviderBenchmark bench;
+                    bench.success = true;
+                    bench.mean_latency_ms = 0.0f;
+                    bench.std_latency_ms = 0.0f;
+                    bench.speedup_vs_cpu = 1.0f;
+
+                    // Extract provider name
+                    size_t prov_pos = obj_content.find("\"provider\":");
+                    if (prov_pos != std::string::npos) {
+                        size_t q1 = obj_content.find("\"", prov_pos + 11);
+                        size_t q2 = obj_content.find("\"", q1 + 1);
+                        if (q1 != std::string::npos && q2 != std::string::npos) {
+                            bench.provider_name = obj_content.substr(q1 + 1, q2 - q1 - 1);
+                        }
+                    }
+
+                    // Extract mean_latency_ms
+                    size_t lat_pos = obj_content.find("\"mean_latency_ms\":");
+                    if (lat_pos != std::string::npos) {
+                        size_t n_start = lat_pos + 18;
+                        while (n_start < obj_content.length() &&
+                               (obj_content[n_start] == ' ' || obj_content[n_start] == ':')) {
+                            n_start++;
+                        }
+                        size_t n_end = n_start;
+                        while (n_end < obj_content.length() &&
+                               (isdigit(obj_content[n_end]) || obj_content[n_end] == '.')) {
+                            n_end++;
+                        }
+                        if (n_end > n_start) {
+                            try {
+                                bench.mean_latency_ms = std::stof(obj_content.substr(n_start, n_end - n_start));
+                            } catch (...) {}
+                        }
+                    }
+
+                    // Extract success flag
+                    size_t succ_pos = obj_content.find("\"success\":");
+                    if (succ_pos != std::string::npos) {
+                        bench.success = obj_content.find("true", succ_pos) != std::string::npos;
+                    }
+
+                    if (!bench.provider_name.empty()) {
+                        metadata.benchmarks.push_back(bench);
+                    }
+
+                    obj_pos = obj_end + 1;
+                }
+            }
+        }
+
+        std::cout << "Benchmark data extracted: fastest=" << metadata.fastest_provider
+                  << ", latency=" << metadata.best_latency_ms << "ms, "
+                  << "speedup=" << speedup_vs_cpu << "x" << std::endl;
+    }
+
+    // Set defaults if not extracted
+    if (metadata.model_format.empty()) {
+        metadata.model_format = "unknown";
+    }
+    if (metadata.input_names.empty()) {
+        metadata.input_names = {"input"};
+    }
+    if (metadata.output_names.empty()) {
+        metadata.output_names = {"output"};
+    }
+
+    std::cout << "Conversion successful: " << metadata.model_format << " → ONNX" << std::endl;
+    return CMW_SUCCESS;
 #else
     // Non-Windows platforms - not supported yet
     std::cerr << "Converter worker only supported on Windows" << std::endl;

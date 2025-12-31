@@ -204,6 +204,18 @@ def extract_register_model_response(envelope) -> Dict[str, Any]:
     resp = envelope.register_model
     metadata = resp.metadata
 
+    # Extract benchmarks
+    benchmarks = []
+    for bench in metadata.benchmarks:
+        benchmarks.append({
+            "provider": bench.provider_name,
+            "success": bench.success,
+            "mean_latency_ms": bench.mean_latency_ms,
+            "std_latency_ms": bench.std_latency_ms,
+            "speedup_vs_cpu": bench.speedup_vs_cpu,
+            "error": bench.error_message if bench.error_message else None
+        })
+
     return {
         "model_id": resp.model_id,
         "metadata": {
@@ -211,6 +223,10 @@ def extract_register_model_response(envelope) -> Dict[str, Any]:
             "model_format": metadata.model_format,
             "input_names": list(metadata.input_names),
             "output_names": list(metadata.output_names),
+            "benchmarks": benchmarks,
+            "fastest_provider": metadata.fastest_provider if metadata.fastest_provider else None,
+            "best_latency_ms": metadata.best_latency_ms if metadata.best_latency_ms > 0 else None,
+            "speedup_vs_cpu": metadata.speedup_vs_cpu if metadata.speedup_vs_cpu > 0 else None,
         }
     }
 

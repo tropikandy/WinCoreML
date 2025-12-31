@@ -181,6 +181,26 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
                     metadata->add_output_names(name);
                 }
 
+                // Add benchmark results
+                for (const auto& bench : internal_resp.metadata.benchmarks) {
+                    auto* bench_result = metadata->add_benchmarks();
+                    bench_result->set_provider_name(bench.provider_name);
+                    bench_result->set_success(bench.success);
+                    bench_result->set_mean_latency_ms(bench.mean_latency_ms);
+                    bench_result->set_std_latency_ms(bench.std_latency_ms);
+                    bench_result->set_speedup_vs_cpu(bench.speedup_vs_cpu);
+                    if (!bench.error_message.empty()) {
+                        bench_result->set_error_message(bench.error_message);
+                    }
+                }
+
+                if (!internal_resp.metadata.fastest_provider.empty()) {
+                    metadata->set_fastest_provider(internal_resp.metadata.fastest_provider);
+                }
+                if (internal_resp.metadata.best_latency_ms > 0) {
+                    metadata->set_best_latency_ms(internal_resp.metadata.best_latency_ms);
+                }
+
                 response_envelope.mutable_status()->set_code(CMW_SUCCESS);
             } else {
                 response_envelope.mutable_status()->set_code(result);
