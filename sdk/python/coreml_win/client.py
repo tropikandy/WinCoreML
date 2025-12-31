@@ -11,6 +11,7 @@ import logging
 
 from .pipe_client import NamedPipeClient
 from .errors import from_error_code, CoreMLWinError
+from . import proto_utils
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +68,15 @@ class RuntimeClient:
         """
         self._ensure_connected()
 
-        # TODO: Implement protobuf message creation/parsing
-        # For now, return placeholder
-        return {
-            "version": "0.1.0",
-            "ready": True
-        }
+        # Create protobuf request
+        request_bytes = proto_utils.create_health_check_request()
+
+        # Send and receive
+        response_bytes = self.pipe_client.send_message(request_bytes)
+
+        # Parse response
+        envelope = proto_utils.parse_response(response_bytes)
+        return proto_utils.extract_health_response(envelope)
 
     def register_model(
         self,
@@ -111,10 +115,23 @@ class RuntimeClient:
         if not model_path.exists():
             raise FileNotFoundError(f"Model not found: {model_path}")
 
-        # TODO: Implement protobuf RegisterModelRequest
-        # For now, return placeholder
         logger.info(f"Registering model: {model_path}")
-        return "placeholder_model_id"
+
+        # Create protobuf request
+        request_bytes = proto_utils.create_register_model_request(
+            str(model_path),
+            cache_key or ""
+        )
+
+        # Send and receive
+        response_bytes = self.pipe_client.send_message(request_bytes)
+
+        # Parse response
+        envelope = proto_utils.parse_response(response_bytes)
+        result = proto_utils.extract_register_model_response(envelope)
+
+        logger.info(f"Model registered: {result['model_id']}")
+        return result['model_id']
 
     def unregister_model(self, model_id: str) -> bool:
         """
@@ -128,9 +145,19 @@ class RuntimeClient:
         """
         self._ensure_connected()
 
-        # TODO: Implement protobuf UnregisterModelRequest
         logger.info(f"Unregistering model: {model_id}")
-        return True
+
+        # Create protobuf request
+        request_bytes = proto_utils.create_unregister_model_request(model_id)
+
+        # Send and receive
+        response_bytes = self.pipe_client.send_message(request_bytes)
+
+        # Parse response
+        envelope = proto_utils.parse_response(response_bytes)
+        result = proto_utils.extract_unregister_model_response(envelope)
+
+        return result['success']
 
     def predict(
         self,
@@ -166,16 +193,26 @@ class RuntimeClient:
             if not isinstance(array, np.ndarray):
                 raise TypeError(f"Input '{name}' must be numpy array")
 
-        # TODO: Implement protobuf PredictRequest
-        # For now, return placeholder
         logger.info(f"Running inference on model: {model_id}")
         logger.info(f"Input shapes: {{{', '.join(f'{k}: {v.shape}' for k, v in inputs.items())}}}")
 
-        # Placeholder output
-        outputs = {
-            "output": np.random.randn(1, 1000).astype(np.float32)
-        }
-        return outputs
+        # Create protobuf request
+        request_bytes = proto_utils.create_predict_request(
+            model_id,
+            inputs,
+            compute_units,
+            timeout_ms
+        )
+
+        # Send and receive
+        response_bytes = self.pipe_client.send_message(request_bytes)
+
+        # Parse response
+        envelope = proto_utils.parse_response(response_bytes)
+        result = proto_utils.extract_predict_response(envelope)
+
+        logger.info(f"Inference complete: {result['debug_info']['inference_time_us']} µs")
+        return result['outputs']
 
     def get_model_info(self, model_id: str) -> Dict[str, Any]:
         """
@@ -237,8 +274,17 @@ class RuntimeClient:
         """
         self._ensure_connected()
 
-        # TODO: Implement protobuf ListModelsRequest
-        return []
+        # Create protobuf request
+        request_bytes = proto_utils.create_list_models_request()
+
+        # Send and receive
+        response_bytes = self.pipe_client.send_message(request_bytes)
+
+        # Parse response
+        envelope = proto_utils.parse_response(response_bytes)
+        result = proto_utils.extract_list_models_response(envelope)
+
+        return result['models']
 
     def get_capabilities(
         self,

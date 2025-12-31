@@ -94,6 +94,8 @@ const char* cmw_error_string(CmwErrorCode code) {
             return "Failed to load configuration";
         case CMW_ERROR_REGISTRY_ERROR:
             return "Model registry error";
+        case CMW_ERROR_UNSUPPORTED_PLATFORM:
+            return "Platform not supported";
         case CMW_ERROR_UNKNOWN:
             return "Unknown error";
 

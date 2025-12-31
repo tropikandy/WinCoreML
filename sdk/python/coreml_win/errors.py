@@ -306,6 +306,12 @@ class RegistryError(RuntimeError):
         super().__init__(message, 4008, details)
 
 
+class UnsupportedPlatformError(RuntimeError):
+    """Platform not supported (4009)."""
+    def __init__(self, message: str = "Platform not supported", details: Optional[str] = None):
+        super().__init__(message, 4009, details)
+
+
 # ============================================================================
 # Transient Errors (5000-5999)
 # ============================================================================
@@ -407,6 +413,7 @@ _ERROR_CODE_MAP = {
     4006: CacheWriteFailedError,
     4007: ConfigLoadFailedError,
     4008: RegistryError,
+    4009: UnsupportedPlatformError,
 
     # Transient errors
     5000: TimeoutError,

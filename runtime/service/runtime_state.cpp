@@ -230,88 +230,220 @@ CmwErrorCode RuntimeState::RunConverterWorker(
         }
     }
 
-    /*
-     * FULL IMPLEMENTATION (requires Python subprocess):
-     *
-     * #ifdef _WIN32
-     *     // Windows implementation
-     *     STARTUPINFO si = {sizeof(si)};
-     *     PROCESS_INFORMATION pi = {0};
-     *
-     *     // Build command: python -m tools.converter_worker.worker
-     *     std::string command = "python -m tools.converter_worker.worker";
-     *
-     *     // Build JSON request
-     *     std::string json_request = R"({
-     *         "command": "convert",
-     *         "model_path": ")" + model_path + R"(",
-     *         "output_path": ")" + output_path + R"(",
-     *         "benchmark": true
-     *     })";
-     *
-     *     // Create pipes for stdin/stdout
-     *     HANDLE stdin_read, stdin_write;
-     *     HANDLE stdout_read, stdout_write;
-     *
-     *     SECURITY_ATTRIBUTES sa = {sizeof(sa), NULL, TRUE};
-     *
-     *     CreatePipe(&stdin_read, &stdin_write, &sa, 0);
-     *     CreatePipe(&stdout_read, &stdout_write, &sa, 0);
-     *
-     *     si.hStdInput = stdin_read;
-     *     si.hStdOutput = stdout_write;
-     *     si.hStdError = stdout_write;
-     *     si.dwFlags |= STARTF_USESTDHANDLES;
-     *
-     *     // Create process
-     *     if (!CreateProcessA(NULL, (LPSTR)command.c_str(), NULL, NULL, TRUE, 0, NULL, NULL, &si, &pi)) {
-     *         return CMW_ERROR_MODEL_CONVERSION_FAILED;
-     *     }
-     *
-     *     // Write JSON request to stdin
-     *     DWORD written;
-     *     WriteFile(stdin_write, json_request.c_str(), json_request.length(), &written, NULL);
-     *     CloseHandle(stdin_write);
-     *
-     *     // Wait for completion (with timeout)
-     *     WaitForSingleObject(pi.hProcess, 60000);
-     *
-     *     // Read response from stdout
-     *     char buffer[4096];
-     *     DWORD read;
-     *     std::string response;
-     *     while (ReadFile(stdout_read, buffer, sizeof(buffer), &read, NULL) && read > 0) {
-     *         response.append(buffer, read);
-     *     }
-     *
-     *     CloseHandle(stdout_read);
-     *     CloseHandle(pi.hProcess);
-     *     CloseHandle(pi.hThread);
-     *
-     *     // Parse JSON response
-     *     // ... (parse metadata and benchmark results)
-     *
-     *     return CMW_SUCCESS;
-     * #endif
-     */
+#ifdef _WIN32
+    // Windows implementation using CreateProcess
+    std::cout << "Launching converter worker subprocess..." << std::endl;
 
-    // PLACEHOLDER: Simulate conversion
-    std::cout << "PLACEHOLDER: Simulating conversion (no actual converter worker)" << std::endl;
+    // Build command: python -m tools.converter_worker.worker
+    std::string python_cmd = "python -m tools.converter_worker.worker";
 
-    // For demo purposes, just note that conversion would happen here
-    metadata.model_format = "unknown";
-    metadata.input_names = {"input"};
-    metadata.output_names = {"output"};
+    // Build JSON request with minimal escaping
+    std::ostringstream json_stream;
+    json_stream << "{\n";
+    json_stream << "  \"command\": \"convert\",\n";
+    json_stream << "  \"model_path\": \"" << model_path << "\",\n";
+    json_stream << "  \"output_path\": \"" << output_path << "\",\n";
+    json_stream << "  \"benchmark\": true,\n";
+    json_stream << "  \"opset_version\": 14\n";
+    json_stream << "}\n";
+    std::string json_request = json_stream.str();
 
-    // Create placeholder ONNX file (empty)
-    std::ofstream ofs(output_path, std::ios::binary);
-    if (!ofs) {
+    std::cout << "Converter request: " << json_request << std::endl;
+
+    // Create pipes for stdin/stdout/stderr
+    HANDLE stdin_read = NULL, stdin_write = NULL;
+    HANDLE stdout_read = NULL, stdout_write = NULL;
+    HANDLE stderr_read = NULL, stderr_write = NULL;
+
+    SECURITY_ATTRIBUTES sa;
+    sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+    sa.bInheritHandle = TRUE;
+    sa.lpSecurityDescriptor = NULL;
+
+    if (!CreatePipe(&stdin_read, &stdin_write, &sa, 0)) {
+        std::cerr << "Failed to create stdin pipe" << std::endl;
         return CMW_ERROR_MODEL_CONVERSION_FAILED;
     }
-    ofs.close();
+    if (!CreatePipe(&stdout_read, &stdout_write, &sa, 0)) {
+        std::cerr << "Failed to create stdout pipe" << std::endl;
+        CloseHandle(stdin_read);
+        CloseHandle(stdin_write);
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+    if (!CreatePipe(&stderr_read, &stderr_write, &sa, 0)) {
+        std::cerr << "Failed to create stderr pipe" << std::endl;
+        CloseHandle(stdin_read);
+        CloseHandle(stdin_write);
+        CloseHandle(stdout_read);
+        CloseHandle(stdout_write);
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
 
-    std::cout << "PLACEHOLDER: Conversion complete" << std::endl;
-    return CMW_SUCCESS;
+    // Ensure child doesn't inherit write end of stdout/stderr
+    SetHandleInformation(stdout_read, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(stderr_read, HANDLE_FLAG_INHERIT, 0);
+    SetHandleInformation(stdin_write, HANDLE_FLAG_INHERIT, 0);
+
+    // Setup process startup info
+    STARTUPINFOA si;
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    si.hStdInput = stdin_read;
+    si.hStdOutput = stdout_write;
+    si.hStdError = stderr_write;
+    si.dwFlags |= STARTF_USESTDHANDLES;
+
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof(pi));
+
+    // Create modifiable command string
+    std::vector<char> cmd_buffer(python_cmd.begin(), python_cmd.end());
+    cmd_buffer.push_back('\0');
+
+    // Create process
+    if (!CreateProcessA(
+        NULL,                   // Application name
+        cmd_buffer.data(),      // Command line
+        NULL,                   // Process security attributes
+        NULL,                   // Thread security attributes
+        TRUE,                   // Inherit handles
+        CREATE_NO_WINDOW,       // Creation flags
+        NULL,                   // Environment
+        NULL,                   // Current directory
+        &si,                    // Startup info
+        &pi                     // Process information
+    )) {
+        DWORD error = GetLastError();
+        std::cerr << "Failed to create converter process. Error code: " << error << std::endl;
+        std::cerr << "Make sure Python is in PATH and converter_worker module is accessible" << std::endl;
+
+        CloseHandle(stdin_read);
+        CloseHandle(stdin_write);
+        CloseHandle(stdout_read);
+        CloseHandle(stdout_write);
+        CloseHandle(stderr_read);
+        CloseHandle(stderr_write);
+
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+
+    std::cout << "Converter process started (PID: " << pi.dwProcessId << ")" << std::endl;
+
+    // Close unused pipe ends in parent
+    CloseHandle(stdin_read);
+    CloseHandle(stdout_write);
+    CloseHandle(stderr_write);
+
+    // Write JSON request to stdin
+    DWORD bytes_written;
+    if (!WriteFile(stdin_write, json_request.c_str(), json_request.length(), &bytes_written, NULL)) {
+        std::cerr << "Failed to write to converter stdin" << std::endl;
+        CloseHandle(stdin_write);
+        CloseHandle(stdout_read);
+        CloseHandle(stderr_read);
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+
+    CloseHandle(stdin_write);  // Signal EOF
+
+    // Wait for process completion (60 second timeout for conversion)
+    DWORD wait_result = WaitForSingleObject(pi.hProcess, 60000);
+
+    if (wait_result == WAIT_TIMEOUT) {
+        std::cerr << "Converter process timed out" << std::endl;
+        TerminateProcess(pi.hProcess, 1);
+        CloseHandle(stdout_read);
+        CloseHandle(stderr_read);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return CMW_ERROR_TIMEOUT;
+    }
+
+    // Check exit code
+    DWORD exit_code = 0;
+    GetExitCodeProcess(pi.hProcess, &exit_code);
+
+    // Read stdout
+    char buffer[4096];
+    DWORD bytes_read;
+    std::string stdout_output;
+
+    while (ReadFile(stdout_read, buffer, sizeof(buffer) - 1, &bytes_read, NULL) && bytes_read > 0) {
+        buffer[bytes_read] = '\0';
+        stdout_output.append(buffer, bytes_read);
+    }
+
+    // Read stderr
+    std::string stderr_output;
+    while (ReadFile(stderr_read, buffer, sizeof(buffer) - 1, &bytes_read, NULL) && bytes_read > 0) {
+        buffer[bytes_read] = '\0';
+        stderr_output.append(buffer, bytes_read);
+    }
+
+    CloseHandle(stdout_read);
+    CloseHandle(stderr_read);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    if (!stderr_output.empty()) {
+        std::cout << "Converter stderr: " << stderr_output << std::endl;
+    }
+
+    if (exit_code != 0) {
+        std::cerr << "Converter process failed with exit code: " << exit_code << std::endl;
+        std::cerr << "Output: " << stdout_output << std::endl;
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+
+    std::cout << "Converter output: " << stdout_output << std::endl;
+
+    // Parse JSON response (basic parsing - in production use proper JSON library)
+    // For now, just check if output file exists and extract basic metadata
+    if (!fs::exists(output_path)) {
+        std::cerr << "Converter did not produce output file" << std::endl;
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+
+    // Extract metadata from JSON response
+    // TODO: Use proper JSON parser (e.g., nlohmann/json)
+    // For now, use simple string parsing
+
+    // Check for success
+    if (stdout_output.find("\"success\": true") != std::string::npos ||
+        stdout_output.find("\"success\":true") != std::string::npos) {
+
+        // Extract format
+        size_t format_pos = stdout_output.find("\"format\":");
+        if (format_pos != std::string::npos) {
+            size_t quote1 = stdout_output.find("\"", format_pos + 10);
+            size_t quote2 = stdout_output.find("\"", quote1 + 1);
+            if (quote1 != std::string::npos && quote2 != std::string::npos) {
+                metadata.model_format = stdout_output.substr(quote1 + 1, quote2 - quote1 - 1);
+            }
+        }
+
+        // Default values (full parsing would extract from JSON)
+        if (metadata.model_format.empty()) {
+            metadata.model_format = "unknown";
+        }
+        metadata.input_names = {"input"};  // Would be extracted from JSON
+        metadata.output_names = {"output"};
+
+        std::cout << "Conversion successful: " << metadata.model_format << " → ONNX" << std::endl;
+        return CMW_SUCCESS;
+
+    } else {
+        std::cerr << "Converter reported failure" << std::endl;
+        return CMW_ERROR_MODEL_CONVERSION_FAILED;
+    }
+#else
+    // Non-Windows platforms - not supported yet
+    std::cerr << "Converter worker only supported on Windows" << std::endl;
+    return CMW_ERROR_UNSUPPORTED_PLATFORM;
+#endif
 }
 
 std::string RuntimeState::ComputeModelHash(const std::string& model_path) {

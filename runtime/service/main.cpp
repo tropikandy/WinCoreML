@@ -12,6 +12,9 @@
 #include "named_pipe_server_win32.h"
 #endif
 
+// Protobuf generated headers
+#include "coremlwin_runtime.pb.h"
+
 #include <iostream>
 #include <cstring>
 #include <csignal>
@@ -65,21 +68,226 @@ void print_usage(const char* program_name) {
 }
 
 /**
+ * Helper: Convert TensorData to protobuf Tensor
+ */
+void TensorDataToProto(const std::string& name, const TensorData& tensor, coremlwin::Tensor* proto_tensor) {
+    proto_tensor->set_name(name);
+
+    // Map dtype to protobuf enum
+    switch (tensor.dtype) {
+        case DTYPE_FLOAT32: proto_tensor->set_dtype(coremlwin::DTYPE_FLOAT32); break;
+        case DTYPE_FLOAT16: proto_tensor->set_dtype(coremlwin::DTYPE_FLOAT16); break;
+        case DTYPE_INT32: proto_tensor->set_dtype(coremlwin::DTYPE_INT32); break;
+        case DTYPE_INT64: proto_tensor->set_dtype(coremlwin::DTYPE_INT64); break;
+        case DTYPE_INT8: proto_tensor->set_dtype(coremlwin::DTYPE_INT8); break;
+        case DTYPE_UINT8: proto_tensor->set_dtype(coremlwin::DTYPE_UINT8); break;
+        default: proto_tensor->set_dtype(coremlwin::DTYPE_FLOAT32);
+    }
+
+    // Copy shape
+    for (int64_t dim : tensor.shape) {
+        proto_tensor->add_shape(dim);
+    }
+
+    // Copy data
+    proto_tensor->set_data(tensor.data.data(), tensor.data.size());
+}
+
+/**
+ * Helper: Convert protobuf Tensor to TensorData
+ */
+void ProtoToTensorData(const coremlwin::Tensor& proto_tensor, TensorData& tensor) {
+    // Map protobuf dtype to internal enum
+    switch (proto_tensor.dtype()) {
+        case coremlwin::DTYPE_FLOAT32: tensor.dtype = DTYPE_FLOAT32; break;
+        case coremlwin::DTYPE_FLOAT16: tensor.dtype = DTYPE_FLOAT16; break;
+        case coremlwin::DTYPE_INT32: tensor.dtype = DTYPE_INT32; break;
+        case coremlwin::DTYPE_INT64: tensor.dtype = DTYPE_INT64; break;
+        case coremlwin::DTYPE_INT8: tensor.dtype = DTYPE_INT8; break;
+        case coremlwin::DTYPE_UINT8: tensor.dtype = DTYPE_UINT8; break;
+        default: tensor.dtype = DTYPE_FLOAT32;
+    }
+
+    // Copy shape
+    tensor.shape.clear();
+    for (int i = 0; i < proto_tensor.shape_size(); i++) {
+        tensor.shape.push_back(proto_tensor.shape(i));
+    }
+
+    // Copy data
+    const std::string& data_str = proto_tensor.data();
+    tensor.data.assign(data_str.begin(), data_str.end());
+}
+
+/**
  * Message handler for IPC requests
- * This is a simplified handler - in production would use protobuf
+ * Deserializes protobuf, dispatches to RuntimeState, serializes response
  */
 std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
-    // PLACEHOLDER: Simple echo for testing
-    // In production, would deserialize protobuf, dispatch to RuntimeState, serialize response
+    coremlwin::PipeResponseEnvelope response_envelope;
 
-    std::cout << "Received request: " << request_data.size() << " bytes" << std::endl;
+    try {
+        // Parse incoming request
+        coremlwin::PipeRequestEnvelope request_envelope;
+        if (!request_envelope.ParseFromArray(request_data.data(), request_data.size())) {
+            std::cerr << "Failed to parse protobuf request" << std::endl;
 
-    // For now, just echo back with a status byte prepended
-    std::vector<uint8_t> response;
-    response.push_back(0);  // Success
-    response.insert(response.end(), request_data.begin(), request_data.end());
+            // Return error response
+            response_envelope.mutable_status()->set_code(CMW_ERROR_INVALID_ARGUMENT);
+            response_envelope.mutable_status()->set_message("Failed to parse request");
 
-    return response;
+            std::string serialized;
+            response_envelope.SerializeToString(&serialized);
+            return std::vector<uint8_t>(serialized.begin(), serialized.end());
+        }
+
+        // Echo request ID
+        response_envelope.set_request_id(request_envelope.request_id());
+
+        // Dispatch based on request type
+        if (request_envelope.has_health_check()) {
+            std::cout << "Handling HealthCheck request" << std::endl;
+
+            auto* health_response = response_envelope.mutable_health_check();
+            health_response->set_version("0.1.0");
+            health_response->set_ready(g_runtime_state && g_runtime_state->IsInitialized());
+
+            response_envelope.mutable_status()->set_code(CMW_SUCCESS);
+
+        } else if (request_envelope.has_register_model()) {
+            std::cout << "Handling RegisterModel request" << std::endl;
+
+            const auto& req = request_envelope.register_model();
+
+            RegisterModelRequest internal_req;
+            internal_req.model_path = req.model_path();
+            internal_req.cache_key = req.cache_key();
+
+            RegisterModelResponse internal_resp;
+            CmwErrorCode result = g_runtime_state->RegisterModel(internal_req, internal_resp);
+
+            if (result == CMW_SUCCESS) {
+                auto* reg_response = response_envelope.mutable_register_model();
+                reg_response->set_model_id(internal_resp.model_id);
+
+                auto* metadata = reg_response->mutable_metadata();
+                metadata->set_model_id(internal_resp.metadata.model_id);
+                metadata->set_model_format(internal_resp.metadata.model_format);
+
+                for (const auto& name : internal_resp.metadata.input_names) {
+                    metadata->add_input_names(name);
+                }
+                for (const auto& name : internal_resp.metadata.output_names) {
+                    metadata->add_output_names(name);
+                }
+
+                response_envelope.mutable_status()->set_code(CMW_SUCCESS);
+            } else {
+                response_envelope.mutable_status()->set_code(result);
+                response_envelope.mutable_status()->set_message(internal_resp.error_message);
+            }
+
+        } else if (request_envelope.has_predict()) {
+            std::cout << "Handling Predict request" << std::endl;
+
+            const auto& req = request_envelope.predict();
+
+            PredictRequest internal_req;
+            internal_req.model_id = req.model_id();
+
+            // Convert input tensors
+            for (int i = 0; i < req.inputs_size(); i++) {
+                TensorData tensor_data;
+                ProtoToTensorData(req.inputs(i), tensor_data);
+                internal_req.inputs[req.inputs(i).name()] = tensor_data;
+            }
+
+            // Config
+            if (req.has_config()) {
+                internal_req.compute_units = "ALL";  // TODO: Map enum
+                internal_req.timeout_ms = req.config().timeout_ms();
+            }
+
+            PredictResponse internal_resp;
+            CmwErrorCode result = g_runtime_state->Predict(internal_req, internal_resp);
+
+            if (result == CMW_SUCCESS) {
+                auto* pred_response = response_envelope.mutable_predict();
+
+                // Convert output tensors
+                for (const auto& [name, tensor] : internal_resp.outputs) {
+                    auto* proto_tensor = pred_response->add_outputs();
+                    TensorDataToProto(name, tensor, proto_tensor);
+                }
+
+                // Debug info
+                auto* debug_info = pred_response->mutable_debug_info();
+                debug_info->set_provider_used(internal_resp.provider_used);
+                debug_info->set_inference_time_us(internal_resp.inference_time_us);
+
+                response_envelope.mutable_status()->set_code(CMW_SUCCESS);
+            } else {
+                response_envelope.mutable_status()->set_code(result);
+                response_envelope.mutable_status()->set_message(internal_resp.error_message);
+            }
+
+        } else if (request_envelope.has_list_models()) {
+            std::cout << "Handling ListModels request" << std::endl;
+
+            auto models = g_runtime_state->ListModels();
+
+            auto* list_response = response_envelope.mutable_list_models();
+            for (const auto& model : models) {
+                auto* metadata = list_response->add_models();
+                metadata->set_model_id(model.model_id);
+                metadata->set_model_format(model.model_format);
+
+                for (const auto& name : model.input_names) {
+                    metadata->add_input_names(name);
+                }
+                for (const auto& name : model.output_names) {
+                    metadata->add_output_names(name);
+                }
+            }
+
+            response_envelope.mutable_status()->set_code(CMW_SUCCESS);
+
+        } else if (request_envelope.has_unregister_model()) {
+            std::cout << "Handling UnregisterModel request" << std::endl;
+
+            const auto& req = request_envelope.unregister_model();
+            CmwErrorCode result = g_runtime_state->UnregisterModel(req.model_id());
+
+            auto* unreg_response = response_envelope.mutable_unregister_model();
+            unreg_response->set_success(result == CMW_SUCCESS);
+
+            response_envelope.mutable_status()->set_code(result);
+
+        } else {
+            std::cerr << "Unknown request type" << std::endl;
+            response_envelope.mutable_status()->set_code(CMW_ERROR_INVALID_ARGUMENT);
+            response_envelope.mutable_status()->set_message("Unknown request type");
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "Exception handling request: " << e.what() << std::endl;
+        response_envelope.mutable_status()->set_code(CMW_ERROR_INTERNAL);
+        response_envelope.mutable_status()->set_message(std::string("Internal error: ") + e.what());
+    }
+
+    // Serialize response
+    std::string serialized;
+    if (!response_envelope.SerializeToString(&serialized)) {
+        std::cerr << "Failed to serialize response" << std::endl;
+
+        // Create minimal error response
+        coremlwin::PipeResponseEnvelope error_envelope;
+        error_envelope.mutable_status()->set_code(CMW_ERROR_INTERNAL);
+        error_envelope.mutable_status()->set_message("Failed to serialize response");
+        error_envelope.SerializeToString(&serialized);
+    }
+
+    return std::vector<uint8_t>(serialized.begin(), serialized.end());
 }
 
 int main(int argc, char* argv[]) {
