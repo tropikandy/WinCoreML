@@ -14,9 +14,9 @@ if readme_file.exists():
 setup(
     name="coreml-win",
     version="0.1.0",
-    author="CoreMLWin Contributors",
+    author="Universal ML Runtime Contributors",
     author_email="",
-    description="Python SDK for CoreML-on-Windows runtime",
+    description="Python SDK for Universal ML Runtime - Run PyTorch, TensorFlow, CoreML, ONNX on Windows",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/yourusername/WinCoreML",
@@ -36,6 +36,7 @@ setup(
     install_requires=[
         "protobuf>=4.21.0",
         "numpy>=1.21.0",
+        "pywin32>=305; platform_system=='Windows'",
     ],
     extras_require={
         "dev": [

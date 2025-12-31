@@ -1,7 +1,7 @@
 """
-CoreML-on-Windows Python SDK
+Universal ML Runtime Python SDK
 
-Provides a Python interface to the CoreMLWin runtime service.
+Provides a Python interface to the Universal ML Runtime service.
 """
 
 from .errors import (
@@ -13,10 +13,16 @@ from .errors import (
     TransientError,
     from_error_code,
 )
+from .client import RuntimeClient
+from .pipe_client import NamedPipeClient
 
 __version__ = "0.1.0"
 
 __all__ = [
+    # Client
+    "RuntimeClient",
+    "NamedPipeClient",
+    # Errors
     "CoreMLWinError",
     "ClientError",
     "ModelError",
