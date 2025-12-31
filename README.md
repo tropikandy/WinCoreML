@@ -1,34 +1,46 @@
-# CoreML-on-Windows
+# Universal ML Runtime for Windows
 
-A high-performance runtime service that brings CoreML model inference to Windows using native acceleration providers (DirectML, OpenVINO, ONNX Runtime).
+A high-performance, universal ML inference runtime for Windows that supports multiple model formats with native hardware acceleration (DirectML, OpenVINO, ONNX Runtime).
 
 ## Overview
 
-CoreML-on-Windows provides a transparent bridge between CoreML models and Windows hardware acceleration, enabling:
+The Universal ML Runtime provides a unified interface for running ML models from any framework on Windows, with automatic optimization and hardware acceleration:
 
-- **Zero-code compatibility**: Run CoreML models on Windows without modification
-- **Hardware acceleration**: Leverage DirectML (GPU), OpenVINO (NPU/CPU), and ONNX Runtime
-- **Automatic fallback**: Intelligent provider selection with graceful degradation
+- **Multi-format support**: PyTorch (.pt), TensorFlow (SavedModel), CoreML (.mlmodel), ONNX - all run seamlessly
+- **Automatic conversion**: All models converted to ONNX at registration with validation and optimization
+- **Hardware acceleration**: Leverage DirectML (GPU/NPU), OpenVINO (Intel NPU), and ONNX Runtime (CPU)
+- **Auto-benchmarking**: Measure expected speedup across providers at model registration time
+- **Intelligent routing**: Provider selection with automatic fallback and retry logic
+- **Unity-ready**: C API designed for Unity and game engine integration
 - **Production-ready**: Robust error handling, telemetry, and configuration
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                   Client Applications                    │
-│         (Python SDK, .NET SDK, Native API)              │
-└────────────────────┬────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                   Client Applications                       │
+│   (Python SDK, .NET SDK, Unity Native Plugin, C API)       │
+└────────────────────┬───────────────────────────────────────┘
                      │ Named Pipes (IPC)
-┌────────────────────▼────────────────────────────────────┐
-│              CoreMLWin Runtime Service                   │
-│  ┌──────────────┬──────────────┬──────────────────┐    │
-│  │ Model Registry│Policy Engine │Provider Registry │    │
-│  └──────────────┴──────────────┴──────────────────┘    │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │         ONNX Conversion Worker                    │  │
-│  │      (CoreML → ONNX via coremltools)             │  │
-│  └──────────────────────────────────────────────────┘  │
-└────────────────────┬────────────────────────────────────┘
+┌────────────────────▼───────────────────────────────────────┐
+│              Universal ML Runtime Service                   │
+│  ┌──────────────┬──────────────┬──────────────────────┐   │
+│  │ Model Registry│Policy Engine │Provider Registry     │   │
+│  │ + Benchmarks  │+ Auto-select │+ Dynamic Loading     │   │
+│  └──────────────┴──────────────┴──────────────────────┘   │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │      Universal Model Converter Worker                 │ │
+│  │  ┌────────────┬────────────┬────────────┬─────────┐  │ │
+│  │  │  PyTorch   │TensorFlow  │  CoreML    │  ONNX   │  │ │
+│  │  │ (.pt/pth)  │(SavedModel)│(.mlpackage)│(native) │  │ │
+│  │  └─────┬──────┴──────┬─────┴─────┬──────┴────┬────┘  │ │
+│  │        └─────────────┴───────────┴───────────┘       │ │
+│  │                     ↓ ONNX + Validation               │ │
+│  └──────────────────────────────────────────────────────┘ │
+│  ┌──────────────────────────────────────────────────────┐ │
+│  │     Benchmarking Engine (Auto-measures speedup)       │ │
+│  └──────────────────────────────────────────────────────┘ │
+└────────────────────┬───────────────────────────────────────┘
                      │
       ┌──────────────┼──────────────┬─────────────┐
       │              │              │             │
@@ -45,10 +57,14 @@ CoreML-on-Windows provides a transparent bridge between CoreML models and Window
 - **Wire Format**: 4-byte little-endian length prefix + Protocol Buffers
 - **Secondary**: gRPC (opt-in via config)
 
-### Intermediate Representation: ONNX
-- CoreML models converted to ONNX via coremltools worker
-- DirectML and OpenVINO natively consume ONNX
-- No custom IR to maintain
+### Universal Model Support via ONNX
+- **PyTorch**: Converted via torch.onnx.export
+- **TensorFlow**: Converted via tf2onnx
+- **CoreML**: Converted via coremltools
+- **ONNX**: Native support (no conversion)
+- All providers consume ONNX - no custom IR to maintain
+- Automatic validation and optimization during conversion
+- Benchmarking runs after conversion to show expected speedup
 
 ### Error Taxonomy
 Unified error codes with clear categories:
@@ -128,12 +144,23 @@ client = RuntimeClient()
 # Check service health
 print(client.health())
 
-# Register a model
-model_id = client.register_model("path/to/model.mlpackage")
+# Register models from any framework - all automatically converted to ONNX
+pytorch_model = client.register_model("models/resnet50.pt")
+tf_model = client.register_model("models/mobilenet_savedmodel/")
+coreml_model = client.register_model("models/classifier.mlpackage")
+onnx_model = client.register_model("models/yolov8.onnx")
 
-# Run inference
-inputs = {"input_image": np.random.randn(1, 3, 224, 224).astype(np.float32)}
-outputs = client.predict(model_id, inputs)
+# Check benchmark results (auto-measured at registration)
+info = client.get_model_info(pytorch_model)
+print(f"Fastest provider: {info['benchmark']['fastest_provider']}")
+print(f"Expected speedup vs CPU: {info['benchmark']['speedup_vs_cpu']:.2f}x")
+
+# Run inference - runtime auto-selects best provider
+inputs = {"input": np.random.randn(1, 3, 224, 224).astype(np.float32)}
+outputs = client.predict(pytorch_model, inputs)
+
+# Or force a specific provider
+outputs = client.predict(pytorch_model, inputs, compute_units="CPU_AND_GPU")
 
 print(f"Output: {outputs}")
 ```
@@ -157,34 +184,43 @@ print(f"Output: {outputs}")
 
 ## Development Roadmap
 
-### Phase 0: Foundation (Steps 1-4)
+### Phase 0: Foundation ✅
 - [x] Repository setup
-- [x] Protocol definitions
-- [x] Error taxonomy
-- [x] Provider interface
+- [x] Protocol definitions (protobuf)
+- [x] Error taxonomy (unified error codes)
+- [x] Provider interface (enhanced capabilities)
+- [x] **Universal converter architecture** (PyTorch, TF, CoreML, ONNX)
+- [x] **Benchmarking module** (auto-measure speedup)
 
-### Phase 1: Service MVP (Steps 5-8)
-- [ ] Named pipe IPC server
-- [ ] Model registry
+### Phase 1: Service MVP 🚧
+- [ ] Named pipe IPC server (Windows async I/O)
+- [ ] Model registry (with benchmark results storage)
 - [ ] CPU provider (ONNX Runtime)
-- [ ] Basic Python SDK
+- [ ] Python SDK client (pipe communication)
+- [ ] **Converter worker integration** (subprocess management)
 
-### Phase 2: Acceleration (Steps 9-12)
-- [ ] DirectML provider
-- [ ] OpenVINO provider
-- [ ] Provider selection engine
-- [ ] Model conversion worker
+### Phase 2: Acceleration
+- [ ] DirectML provider (GPU/NPU)
+- [ ] OpenVINO provider (Intel NPU)
+- [ ] Provider selection engine (with benchmarks)
+- [ ] INT8 quantization (NPU optimization)
 
-### Phase 3: Hardening (Steps 13-16)
-- [ ] Caching layer
-- [ ] Telemetry
-- [ ] Configuration system
-- [ ] Installer
+### Phase 3: Unity & Gaming
+- [ ] **Unity-friendly C API** (marshalling-safe)
+- [ ] Unity native plugin (.dll)
+- [ ] Example Unity project
+- [ ] Shared memory transport (large tensors)
 
-### Phase 4: Extensibility (Steps 17-19)
-- [ ] Plugin system
-- [ ] CLI tools
-- [ ] GUI (Dear ImGui)
+### Phase 4: Hardening
+- [ ] Caching layer (converted models + sessions)
+- [ ] Telemetry (latency, provider usage)
+- [ ] Configuration system (policies)
+- [ ] Windows installer (MSI)
+
+### Phase 5: Extensibility
+- [ ] Plugin system (custom providers)
+- [ ] CLI tools (model management)
+- [ ] Web dashboard (optional)
 
 ## Contributing
 

@@ -1,0 +1,24 @@
+# Universal ML Model Converter Dependencies
+
+# Core dependencies
+numpy>=1.21.0
+onnx>=1.14.0
+onnxruntime>=1.16.0
+
+# PyTorch support
+torch>=2.0.0
+# Note: For Windows, use: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# TensorFlow support
+tensorflow>=2.13.0
+tf2onnx>=1.15.0
+
+# CoreML support (macOS/cross-platform)
+coremltools>=7.0
+
+# Optional: ONNX optimization
+onnxoptimizer>=0.3.0
+
+# Utilities
+Pillow>=10.0.0  # For image handling in CoreML converter
+protobuf>=4.21.0
