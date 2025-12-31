@@ -6,6 +6,7 @@
  */
 
 #include "../include/coremlwin_errors.h"
+#include "../include/logger.h"
 #include "runtime_state.h"
 
 #ifdef _WIN32
@@ -22,6 +23,8 @@
 #include <thread>
 #include <chrono>
 
+using namespace coremlwin;
+
 // Version information
 #define UMLRT_VERSION_MAJOR 0
 #define UMLRT_VERSION_MINOR 1
@@ -37,7 +40,7 @@ NamedPipeServer* g_server = nullptr;
 RuntimeState* g_runtime_state = nullptr;
 
 void signal_handler(int signal) {
-    std::cout << "\nShutdown signal received (" << signal << ")" << std::endl;
+    LOG_INFO << "Shutdown signal received (" << signal << ")";
     g_running = false;
 
 #ifdef _WIN32
@@ -130,7 +133,7 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
         // Parse incoming request
         coremlwin::PipeRequestEnvelope request_envelope;
         if (!request_envelope.ParseFromArray(request_data.data(), request_data.size())) {
-            std::cerr << "Failed to parse protobuf request" << std::endl;
+            LOG_ERROR << "Failed to parse protobuf request (" << request_data.size() << " bytes)";
 
             // Return error response
             response_envelope.mutable_status()->set_code(CMW_ERROR_INVALID_ARGUMENT);
@@ -146,7 +149,7 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
 
         // Dispatch based on request type
         if (request_envelope.has_health_check()) {
-            std::cout << "Handling HealthCheck request" << std::endl;
+            LOG_DEBUG << "Handling HealthCheck request";
 
             auto* health_response = response_envelope.mutable_health_check();
             health_response->set_version("0.1.0");
@@ -155,7 +158,7 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
             response_envelope.mutable_status()->set_code(CMW_SUCCESS);
 
         } else if (request_envelope.has_register_model()) {
-            std::cout << "Handling RegisterModel request" << std::endl;
+            LOG_INFO << "Handling RegisterModel request";
 
             const auto& req = request_envelope.register_model();
 
@@ -208,7 +211,7 @@ std::vector<uint8_t> handle_message(const std::vector<uint8_t>& request_data) {
             }
 
         } else if (request_envelope.has_predict()) {
-            std::cout << "Handling Predict request" << std::endl;
+            LOG_DEBUG << "Handling Predict request";
 
             const auto& req = request_envelope.predict();
 
@@ -346,21 +349,34 @@ int main(int argc, char* argv[]) {
         }
     }
 
+    // Initialize logger
+    LogLevel log_level = dev_mode ? LogLevel::DEBUG : LogLevel::INFO;
+    Logger::GetInstance().Initialize(
+        log_level,
+        true,   // log to file
+        cache_dir + "/coremlwin_runtime.log",
+        true    // log to console
+    );
+
     // Print banner
     std::cout << "========================================" << std::endl;
     print_version();
     std::cout << "========================================" << std::endl;
 
     if (dev_mode) {
-        std::cout << "Running in DEVELOPMENT mode" << std::endl;
+        std::cout << "Running in DEVELOPMENT mode (DEBUG logging)" << std::endl;
     }
+
+    LOG_INFO << "Universal ML Runtime Service starting";
+    LOG_INFO << "Cache directory: " << cache_dir;
+    LOG_INFO << "Pipe name: " << pipe_name;
 
     // Install signal handlers
     std::signal(SIGINT, signal_handler);
     std::signal(SIGTERM, signal_handler);
 
     // Initialize runtime state
-    std::cout << "\n[1/3] Initializing runtime state..." << std::endl;
+    LOG_INFO << "Initializing runtime state...";
     RuntimeState runtime_state;
     g_runtime_state = &runtime_state;
 
