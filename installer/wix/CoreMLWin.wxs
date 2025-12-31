@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  WiX Installer Configuration for CoreMLWin Universal ML Runtime
+
+  Build with:
+    candle CoreMLWin.wxs -ext WixUIExtension
+    light CoreMLWin.wixobj -ext WixUIExtension -out CoreMLWin-0.1.0-x64.msi
+
+  Or use build script:
+    powershell .\build-installer.ps1
+-->
+
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi"
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
+
+  <?define ProductName = "CoreMLWin Universal ML Runtime" ?>
+  <?define ProductVersion = "0.1.0" ?>
+  <?define ProductManufacturer = "CoreMLWin Project" ?>
+  <?define ProductUpgradeCode = "12345678-1234-1234-1234-123456789ABC" ?>
+
+  <Product Id="*"
+           Name="$(var.ProductName)"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.ProductManufacturer)"
+           UpgradeCode="$(var.ProductUpgradeCode)">
+
+    <Package InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Description="Universal ML Runtime for Windows with DirectML GPU acceleration"
+             Comments="Open source machine learning runtime"
+             Platform="x64" />
+
+    <!-- Require Windows 10 1903 or newer -->
+    <Condition Message="This application requires Windows 10 version 1903 (build 18362) or newer.">
+      <![CDATA[Installed OR (VersionNT >= 603) OR (VersionNT = 602 AND MsiNTProductType = 1 AND WindowsBuild >= 18362)]]>
+    </Condition>
+
+    <!-- Major upgrade logic -->
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed."
+                  AllowSameVersionUpgrades="yes" />
+
+    <!-- Embed CAB in MSI -->
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- UI -->
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <WixVariable Id="WixUILicenseRtf" Value="License.rtf" />
+    <WixVariable Id="WixUIBannerBmp" Value="banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="dialog.bmp" />
+
+    <!-- Properties -->
+    <Property Id="ARPPRODUCTICON" Value="CoreMLWinIcon.ico" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/user/WinCoreML" />
+    <Property Id="ARPNOREPAIR" Value="yes" Secure="yes" />
+    <Property Id="ARPNOMODIFY" Value="yes" Secure="yes" />
+
+    <!-- Check for ONNX Runtime (optional, bundled) -->
+    <Property Id="ONNXRUNTIME_INSTALLED">
+      <DirectorySearch Id="SearchONNXRuntime" Path="[ProgramFilesFolder]">
+        <DirectorySearch Id="SearchONNXRuntimeDir" Path="onnxruntime" />
+      </DirectorySearch>
+    </Property>
+
+    <!-- Features -->
+    <Feature Id="CoreFeature"
+             Title="Core Runtime"
+             Description="CoreMLWin runtime service and ONNX Runtime libraries"
+             Level="1"
+             Display="expand"
+             ConfigurableDirectory="INSTALLDIR"
+             AllowAdvertise="no"
+             Absent="disallow">
+
+      <ComponentGroupRef Id="CoreComponents" />
+      <ComponentGroupRef Id="ONNXRuntimeComponents" />
+      <ComponentRef Id="EnvironmentPath" />
+    </Feature>
+
+    <Feature Id="PythonSDKFeature"
+             Title="Python SDK"
+             Description="Python client library for CoreMLWin"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="PythonSDKComponents" />
+    </Feature>
+
+    <Feature Id="ToolsFeature"
+             Title="CLI Tools"
+             Description="Command-line utilities for model management"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="ToolsComponents" />
+    </Feature>
+
+    <Feature Id="DocumentationFeature"
+             Title="Documentation"
+             Description="User guides and API documentation"
+             Level="1"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="DocumentationComponents" />
+    </Feature>
+
+    <Feature Id="SampleModelsFeature"
+             Title="Sample Models"
+             Description="Pre-trained ONNX models for testing (100 MB)"
+             Level="1000"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="SampleModelsComponents" />
+    </Feature>
+
+    <Feature Id="DevelopmentFeature"
+             Title="Development Files"
+             Description="C++ headers and libraries for building applications"
+             Level="1000"
+             AllowAdvertise="no">
+      <ComponentGroupRef Id="DevelopmentComponents" />
+    </Feature>
+
+    <!-- Directory structure -->
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLDIR" Name="CoreMLWin">
+
+          <!-- bin\ -->
+          <Directory Id="BinDir" Name="bin">
+            <Component Id="MainExecutable" Guid="*" Win64="yes">
+              <File Id="CoreMLWinService"
+                    Source="$(var.BuildDir)\coremlwin_service.exe"
+                    KeyPath="yes"
+                    Checksum="yes">
+                <util:PermissionEx User="Everyone" GenericRead="yes" GenericExecute="yes" />
+              </File>
+            </Component>
+          </Directory>
+
+          <!-- sdk\python\ -->
+          <Directory Id="SdkDir" Name="sdk">
+            <Directory Id="PythonSdkDir" Name="python" />
+          </Directory>
+
+          <!-- tools\ -->
+          <Directory Id="ToolsDir" Name="tools" />
+
+          <!-- docs\ -->
+          <Directory Id="DocsDir" Name="docs" />
+
+          <!-- models\ -->
+          <Directory Id="ModelsDir" Name="models" />
+
+          <!-- include\ (dev headers) -->
+          <Directory Id="IncludeDir" Name="include" />
+
+          <!-- lib\ (dev libraries) -->
+          <Directory Id="LibDir" Name="lib" />
+        </Directory>
+      </Directory>
+
+      <!-- Start Menu -->
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="CoreMLWin" />
+      </Directory>
+    </Directory>
+
+    <!-- Component Groups -->
+    <ComponentGroup Id="CoreComponents" Directory="BinDir">
+      <Component Id="CoreMLWinService" Guid="*" Win64="yes">
+        <File Source="$(var.BuildDir)\coremlwin_service.exe" KeyPath="yes" />
+      </Component>
+      <Component Id="ProtobufDLL" Guid="*" Win64="yes">
+        <File Source="$(var.BuildDir)\libprotobuf.dll" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="ONNXRuntimeComponents" Directory="BinDir">
+      <Component Id="ONNXRuntimeDLL" Guid="*" Win64="yes">
+        <File Source="$(var.ONNXRuntimeDir)\lib\onnxruntime.dll" KeyPath="yes" />
+      </Component>
+      <Component Id="DirectMLDLL" Guid="*" Win64="yes">
+        <File Source="$(var.ONNXRuntimeDir)\lib\DirectML.dll" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="PythonSDKComponents" Directory="PythonSdkDir">
+      <Component Id="PythonSDK" Guid="*" Win64="yes">
+        <File Source="$(var.SourceDir)\sdk\python\setup.py" KeyPath="yes" />
+        <File Source="$(var.SourceDir)\sdk\python\coremlwin_client.py" />
+        <File Source="$(var.SourceDir)\sdk\python\__init__.py" />
+        <File Source="$(var.SourceDir)\sdk\python\README.md" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="ToolsComponents" Directory="ToolsDir">
+      <Component Id="CLITool" Guid="*" Win64="yes">
+        <File Source="$(var.SourceDir)\tools\coremlwin_cli.py" KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="DocumentationComponents" Directory="DocsDir">
+      <Component Id="Documentation" Guid="*" Win64="yes">
+        <File Source="$(var.SourceDir)\README.md" KeyPath="yes" />
+        <File Source="$(var.SourceDir)\docs\INSTALLATION.md" />
+        <File Source="$(var.SourceDir)\docs\TESTING.md" />
+        <File Source="$(var.SourceDir)\docs\WEEK5_INTEGRATION.md" />
+        <File Source="$(var.SourceDir)\docs\ONNX_RUNTIME_SETUP.md" />
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="SampleModelsComponents" Directory="ModelsDir">
+      <Component Id="SampleModels" Guid="*" Win64="yes">
+        <File Source="$(var.ModelsDir)\mobilenetv2-7.onnx" KeyPath="yes" />
+        <!-- Add more sample models here -->
+      </Component>
+    </ComponentGroup>
+
+    <ComponentGroup Id="DevelopmentComponents" Directory="IncludeDir">
+      <Component Id="DevelopmentHeaders" Guid="*" Win64="yes">
+        <File Source="$(var.SourceDir)\runtime\include\coremlwin_errors.h" KeyPath="yes" />
+        <File Source="$(var.SourceDir)\runtime\include\logger.h" />
+        <File Source="$(var.SourceDir)\runtime\include\security_utils.h" />
+        <!-- Add more headers -->
+      </Component>
+    </ComponentGroup>
+
+    <!-- Environment variable -->
+    <Component Id="EnvironmentPath" Directory="BinDir" Guid="*" Win64="yes">
+      <Environment Id="PATH"
+                   Name="PATH"
+                   Value="[BinDir]"
+                   Permanent="no"
+                   Part="last"
+                   Action="set"
+                   System="yes" />
+      <CreateFolder />
+    </Component>
+
+    <!-- Start menu shortcuts -->
+    <DirectoryRef Id="ApplicationProgramsFolder">
+      <Component Id="ApplicationShortcut" Guid="*">
+        <Shortcut Id="ApplicationStartMenuShortcut"
+                  Name="CoreMLWin Service"
+                  Description="CoreMLWin Universal ML Runtime Service"
+                  Target="[BinDir]coremlwin_service.exe"
+                  WorkingDirectory="BinDir" />
+
+        <Shortcut Id="DocumentationShortcut"
+                  Name="CoreMLWin Documentation"
+                  Description="View CoreMLWin documentation"
+                  Target="[DocsDir]README.md"
+                  WorkingDirectory="DocsDir" />
+
+        <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\CoreMLWin\Installer"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- Custom actions -->
+    <CustomAction Id="InstallPythonSDK"
+                  Directory="PythonSdkDir"
+                  ExeCommand="cmd /c pip install -e ."
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <CustomAction Id="StartService"
+                  Directory="BinDir"
+                  ExeCommand="cmd /c sc create CoreMLWin binPath=&quot;[BinDir]coremlwin_service.exe&quot; start=auto"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <CustomAction Id="StopService"
+                  Directory="BinDir"
+                  ExeCommand="cmd /c sc stop CoreMLWin &amp; sc delete CoreMLWin"
+                  Execute="deferred"
+                  Return="ignore"
+                  Impersonate="no" />
+
+    <!-- Install sequence -->
+    <InstallExecuteSequence>
+      <Custom Action="InstallPythonSDK" After="InstallFiles">
+        <![CDATA[(&PythonSDKFeature = 3) AND NOT Installed]]>
+      </Custom>
+      <Custom Action="StartService" After="InstallPythonSDK">
+        <![CDATA[NOT Installed]]>
+      </Custom>
+      <Custom Action="StopService" Before="RemoveFiles">
+        <![CDATA[Installed AND (REMOVE="ALL")]]>
+      </Custom>
+    </InstallExecuteSequence>
+
+    <!-- Registry entries -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="RegistryEntries" Guid="*" Win64="yes">
+        <RegistryKey Root="HKLM" Key="Software\CoreMLWin">
+          <RegistryValue Type="string" Name="InstallPath" Value="[INSTALLDIR]" KeyPath="yes" />
+          <RegistryValue Type="string" Name="Version" Value="$(var.ProductVersion)" />
+          <RegistryValue Type="string" Name="BinPath" Value="[BinDir]" />
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+
+  </Product>
+</Wix>

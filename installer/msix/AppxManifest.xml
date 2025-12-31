@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  MSIX Package Manifest for Microsoft Store
+
+  Build with:
+    makeappx pack /d PackageFiles /p CoreMLWin.msix
+
+  Sign with:
+    signtool sign /fd SHA256 /a /f certificate.pfx CoreMLWin.msix
+-->
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  IgnorableNamespaces="uap rescap desktop">
+
+  <Identity
+    Name="CoreMLWin.UniversalMLRuntime"
+    Publisher="CN=CoreMLWin Project"
+    Version="0.1.0.0"
+    ProcessorArchitecture="x64" />
+
+  <Properties>
+    <DisplayName>CoreMLWin - Universal ML Runtime</DisplayName>
+    <PublisherDisplayName>CoreMLWin Project</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+    <Description>Universal Machine Learning Runtime for Windows with DirectML GPU acceleration. Run ONNX models with high performance on CPU and GPU.</Description>
+  </Properties>
+
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.18362.0" MaxVersionTested="10.0.22000.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us"/>
+  </Resources>
+
+  <Applications>
+    <Application Id="CoreMLWinService"
+      Executable="bin\coremlwin_service.exe"
+      EntryPoint="Windows.FullTrustApplication">
+
+      <uap:VisualElements
+        DisplayName="CoreMLWin Runtime"
+        Description="Universal ML Runtime Service"
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" />
+      </uap:VisualElements>
+
+      <Extensions>
+        <!-- Full trust application (desktop app) -->
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="bin\coremlwin_service.exe" />
+
+        <!-- Startup task -->
+        <desktop:Extension Category="windows.startupTask" Executable="bin\coremlwin_service.exe" EntryPoint="Windows.FullTrustApplication">
+          <desktop:StartupTask TaskId="CoreMLWinServiceStartup" Enabled="true" DisplayName="CoreMLWin Service" />
+        </desktop:Extension>
+
+        <!-- File type association for .onnx files -->
+        <uap:Extension Category="windows.fileTypeAssociation">
+          <uap:FileTypeAssociation Name="onnx">
+            <uap:Logo>Assets\FileIcon.png</uap:Logo>
+            <uap:DisplayName>ONNX Model</uap:DisplayName>
+            <uap:EditFlags OpenIsSafe="true"/>
+            <uap:SupportedFileTypes>
+              <uap:FileType>.onnx</uap:FileType>
+            </uap:SupportedFileTypes>
+          </uap:FileTypeAssociation>
+        </uap:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust" />
+    <Capability Name="internetClient" />
+    <Capability Name="internetClientServer" />
+    <Capability Name="privateNetworkClientServer" />
+  </Capabilities>
+</Package>

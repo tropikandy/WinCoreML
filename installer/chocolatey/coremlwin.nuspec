@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Chocolatey Package Specification for CoreMLWin
+
+  Build with:
+    choco pack
+
+  Test locally:
+    choco install coremlwin -source .
+
+  Publish:
+    choco push coremlwin.0.1.0.nupkg --source https://push.chocolatey.org/
+-->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>coremlwin</id>
+    <version>0.1.0</version>
+    <packageSourceUrl>https://github.com/user/WinCoreML/tree/main/installer/chocolatey</packageSourceUrl>
+    <owners>CoreMLWin Project</owners>
+
+    <title>CoreMLWin - Universal ML Runtime</title>
+    <authors>CoreMLWin Contributors</authors>
+    <projectUrl>https://github.com/user/WinCoreML</projectUrl>
+    <iconUrl>https://github.com/user/WinCoreML/raw/main/assets/icon.png</iconUrl>
+    <copyright>2024 CoreMLWin Project</copyright>
+    <licenseUrl>https://github.com/user/WinCoreML/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/user/WinCoreML</projectSourceUrl>
+    <docsUrl>https://github.com/user/WinCoreML/tree/main/docs</docsUrl>
+    <bugTrackerUrl>https://github.com/user/WinCoreML/issues</bugTrackerUrl>
+    <tags>machine-learning ml onnx directml gpu windows runtime inference python csharp</tags>
+
+    <summary>Universal Machine Learning Runtime for Windows with DirectML GPU acceleration</summary>
+    <description><![CDATA[
+# CoreMLWin - Universal ML Runtime
+
+High-performance machine learning runtime for Windows that brings Apple CoreML-like experience with DirectML GPU acceleration.
+
+## Features
+
+- ✅ **ONNX Runtime Integration** - Run any ONNX model
+- ✅ **DirectML GPU Acceleration** - Harness Windows GPU power (NVIDIA, AMD, Intel)
+- ✅ **CPU Fallback** - Automatic fallback when GPU unavailable
+- ✅ **Python SDK** - Easy-to-use Python client library
+- ✅ **C++ API** - Native performance for C++ applications
+- ✅ **Production Ready** - Comprehensive error handling and logging
+- ✅ **Secure** - Red-team tested with defense in depth
+
+## Requirements
+
+- Windows 10 version 1903 (build 18362) or newer
+- DirectX 12 capable GPU (for GPU acceleration)
+- Latest GPU drivers
+
+## Quick Start
+
+After installation:
+
+```powershell
+# Start the service
+sc start CoreMLWin
+
+# Install Python SDK
+pip install coremlwin
+
+# Run inference
+python
+>>> from coremlwin_client import CoreMLWinClient
+>>> client = CoreMLWinClient()
+>>> client.health()
+{'ready': True, 'version': '0.1.0'}
+```
+
+## Package Notes
+
+- Installs to: `C:\ProgramData\chocolatey\lib\coremlwin\tools`
+- Includes: ONNX Runtime 1.16.3, DirectML, Python SDK, CLI tools
+- Auto-start: Service can be configured to start automatically
+- Updates: Use `choco upgrade coremlwin` to update
+
+## Documentation
+
+- Installation Guide: https://github.com/user/WinCoreML/blob/main/docs/INSTALLATION.md
+- API Reference: https://github.com/user/WinCoreML/blob/main/docs/API.md
+- Testing Guide: https://github.com/user/WinCoreML/blob/main/docs/TESTING.md
+]]></description>
+
+    <releaseNotes>https://github.com/user/WinCoreML/blob/main/CHANGELOG.md</releaseNotes>
+
+    <dependencies>
+      <dependency id="vcredist2022" version="14.30.30704" />
+      <dependency id="python" version="3.8.0" />
+    </dependencies>
+  </metadata>
+
+  <files>
+    <file src="tools\**" target="tools" />
+    <file src="legal\**" target="legal" />
+  </files>
+</package>

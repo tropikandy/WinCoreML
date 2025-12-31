@@ -1,0 +1,55 @@
+# Winget Locale Manifest - English (US)
+
+PackageIdentifier: CoreMLWin.UniversalMLRuntime
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: CoreMLWin Project
+PublisherUrl: https://github.com/user/WinCoreML
+PublisherSupportUrl: https://github.com/user/WinCoreML/issues
+# PrivacyUrl:
+Author: CoreMLWin Contributors
+PackageName: CoreMLWin - Universal ML Runtime
+PackageUrl: https://github.com/user/WinCoreML
+License: MIT
+LicenseUrl: https://github.com/user/WinCoreML/blob/main/LICENSE
+Copyright: Copyright (c) 2024 CoreMLWin Project
+# CopyrightUrl:
+ShortDescription: Universal Machine Learning Runtime for Windows with DirectML GPU acceleration
+Description: |-
+  CoreMLWin brings Apple CoreML-like experience to Windows with high-performance machine learning inference.
+
+  Features:
+  • ONNX Runtime integration for broad model support
+  • DirectML GPU acceleration (NVIDIA, AMD, Intel)
+  • Automatic CPU fallback when GPU unavailable
+  • Python SDK and C++ API
+  • Production-ready with comprehensive error handling
+  • Red-team tested security
+
+  Perfect for:
+  • Running ML models on Windows
+  • GPU-accelerated inference
+  • Desktop ML applications
+  • Embedded ML in Windows apps
+
+  Requirements:
+  • Windows 10 version 1903 (build 18362) or newer
+  • DirectX 12 capable GPU (for GPU acceleration)
+  • Latest GPU drivers
+
+Moniker: coremlwin
+Tags:
+- machine-learning
+- ml
+- onnx
+- directml
+- gpu
+- inference
+- runtime
+- python
+- cpp
+- windows
+- ai
+- deep-learning
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
