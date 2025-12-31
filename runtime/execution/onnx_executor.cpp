@@ -7,6 +7,7 @@
 
 #include "onnx_executor.h"
 #include "logger.h"
+#include "security_utils.h"
 #include <sstream>
 
 #ifdef CMW_HAVE_ONNXRUNTIME
@@ -47,10 +48,21 @@ CmwErrorCode ONNXExecutor::LoadModel(
     const std::string& provider_name
 ) {
     using namespace coremlwin;
+    using namespace coremlwin::security;
 
-    LOG_INFO << "Loading ONNX model: " << model_path << " with provider: " << provider_name;
+    LOG_INFO << "Loading ONNX model: " << SanitizeForLog(model_path)
+             << " with provider: " << SanitizeForLog(provider_name);
 
-    impl_->model_path = model_path;
+    // SECURITY: Validate model path to prevent path traversal attacks
+    std::filesystem::path canonical_path;
+    if (!ValidateModelPath(model_path, canonical_path)) {
+        LOG_ERROR << "Invalid or unsafe model path: " << SanitizeForLog(model_path);
+        return CMW_ERROR_INVALID_ARGUMENT;
+    }
+
+    LOG_DEBUG << "Validated model path: " << canonical_path.string();
+
+    impl_->model_path = canonical_path.string();
     impl_->provider_name = provider_name;
 
 #if USING_REAL_ONNXRUNTIME
@@ -138,10 +150,18 @@ CmwErrorCode ONNXExecutor::LoadModel(
 
     } catch (const Ort::Exception& e) {
         LOG_ERROR << "ONNX Runtime error: " << e.what();
+        // SECURITY: Clean up resources on error
+        impl_->session.reset();
+        impl_->session_options.reset();
+        impl_->env.reset();
         impl_->loaded = false;
         return CMW_ERROR_MODEL_LOAD_FAILED;
     } catch (const std::exception& e) {
         LOG_ERROR << "Failed to load model: " << e.what();
+        // SECURITY: Clean up resources on error
+        impl_->session.reset();
+        impl_->session_options.reset();
+        impl_->env.reset();
         impl_->loaded = false;
         return CMW_ERROR_MODEL_LOAD_FAILED;
     }
@@ -191,11 +211,26 @@ CmwErrorCode ONNXExecutor::RunInference(
             const auto& tensor = it->second;
             LOG_DEBUG << "  Input '" << input_name << "': " << tensor.data.size() << " bytes";
 
+            // SECURITY: Validate tensor shape to prevent integer overflow
+            size_t num_elements;
+            if (!ValidateTensorShape(tensor.shape, num_elements)) {
+                LOG_ERROR << "Invalid tensor shape for input: " << input_name;
+                return CMW_ERROR_INVALID_ARGUMENT;
+            }
+
+            // SECURITY: Validate tensor data size matches shape (prevent buffer overflow)
             // TODO: Support multiple dtypes, currently assuming float32
+            if (!ValidateTensorDataSize(tensor.shape, tensor.data.size(), sizeof(float))) {
+                LOG_ERROR << "Tensor data size mismatch for input: " << input_name
+                         << " (expected " << (num_elements * sizeof(float))
+                         << " bytes, got " << tensor.data.size() << " bytes)";
+                return CMW_ERROR_INVALID_ARGUMENT;
+            }
+
             auto tensor_value = Ort::Value::CreateTensor<float>(
                 memory_info,
                 reinterpret_cast<float*>(const_cast<uint8_t*>(tensor.data.data())),
-                tensor.data.size() / sizeof(float),
+                num_elements,  // Use validated count
                 tensor.shape.data(),
                 tensor.shape.size()
             );
@@ -264,11 +299,19 @@ CmwErrorCode ONNXExecutor::RunInference(
         output_tensor.dtype = CMW_DTYPE_FLOAT32;
         output_tensor.shape = impl_->output_shapes[output_name];
 
-        // Calculate size
-        size_t num_elements = 1;
-        for (auto dim : output_tensor.shape) {
-            num_elements *= dim;
+        // SECURITY: Calculate size with overflow protection (even in placeholder mode)
+        size_t num_elements;
+        if (!ValidateTensorShape(output_tensor.shape, num_elements)) {
+            LOG_ERROR << "Invalid output shape in placeholder mode: " << output_name;
+            return CMW_ERROR_PROVIDER_EXECUTION_FAILED;
         }
+
+        // Check size before allocation
+        if (num_elements > SIZE_MAX / sizeof(float)) {
+            LOG_ERROR << "Output tensor too large in placeholder mode";
+            return CMW_ERROR_PROVIDER_EXECUTION_FAILED;
+        }
+
         output_tensor.data.resize(num_elements * sizeof(float));
 
         // Fill with dummy data
