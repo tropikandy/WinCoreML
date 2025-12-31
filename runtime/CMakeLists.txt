@@ -92,17 +92,18 @@ target_include_directories(coremlwin_core
 # Runtime Service Executable
 # ============================================================================
 
-# Note: Windows-specific sources are conditional
+# Runtime service sources
+set(SERVICE_SOURCES
+    service/main.cpp
+    service/model_registry.cpp
+    service/runtime_state.cpp
+    execution/onnx_executor.cpp
+)
+
+# Windows-specific sources
 if(WIN32)
-    set(SERVICE_SOURCES
-        service/main.cpp
-        # service/named_pipe_server_win32.cpp  # To be implemented
-        # service/runtime_state.cpp             # To be implemented
-    )
-else()
-    set(SERVICE_SOURCES
-        service/main.cpp
-        # service/unix_socket_server.cpp        # Future: Unix support
+    list(APPEND SERVICE_SOURCES
+        service/named_pipe_server_win32.cpp
     )
 endif()
 
