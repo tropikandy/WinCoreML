@@ -1,0 +1,43 @@
+{
+  "version": "1.0",
+  "policy_name": "default",
+  "description": "Default provider selection and routing policy",
+  "provider_priority": {
+    "CPU_ONLY": ["cpu"],
+    "CPU_AND_GPU": ["directml", "openvino", "cpu"],
+    "CPU_AND_NPU": ["openvino", "cpu"],
+    "ALL": ["openvino", "directml", "cpu"]
+  },
+  "fallback_behavior": {
+    "enabled": true,
+    "max_fallback_attempts": 2,
+    "retry_transient_errors": true,
+    "retry_max_attempts": 3,
+    "retry_backoff_ms": [100, 500, 2000]
+  },
+  "device_selection": {
+    "prefer_dedicated_gpu": true,
+    "prefer_integrated_gpu": false,
+    "min_device_memory_mb": 512
+  },
+  "model_routing": {
+    "small_models_prefer_cpu": {
+      "enabled": true,
+      "threshold_params_million": 10
+    },
+    "large_models_require_gpu": {
+      "enabled": false,
+      "threshold_params_million": 100
+    }
+  },
+  "performance_hints": {
+    "optimize_for_latency": true,
+    "optimize_for_throughput": false,
+    "batch_size_preference": "auto"
+  },
+  "constraints": {
+    "max_inference_time_ms": 30000,
+    "max_memory_per_model_mb": 2048,
+    "max_concurrent_inferences": 8
+  }
+}

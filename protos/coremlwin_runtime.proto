@@ -1,0 +1,234 @@
+/**
+ * CoreML-on-Windows Runtime Protocol
+ *
+ * Wire protocol for IPC between clients and the CoreMLWin runtime service.
+ * Transport: Windows Named Pipes with 4-byte length prefix
+ */
+
+syntax = "proto3";
+
+package coremlwin;
+
+// ============================================================================
+// Common Types
+// ============================================================================
+
+/**
+ * Error status with code and message
+ */
+message ErrorStatus {
+    int32 code = 1;              // CmwErrorCode value
+    string message = 2;           // Human-readable error
+    string details = 3;           // Additional context (optional)
+}
+
+/**
+ * Tensor data type
+ */
+enum DataType {
+    DTYPE_FLOAT32 = 0;
+    DTYPE_FLOAT16 = 1;
+    DTYPE_INT32 = 2;
+    DTYPE_INT64 = 3;
+    DTYPE_INT8 = 4;
+    DTYPE_UINT8 = 5;
+    DTYPE_BOOL = 6;
+}
+
+/**
+ * Compute units preference
+ */
+enum ComputeUnits {
+    CPU_ONLY = 0;
+    CPU_AND_GPU = 1;
+    ALL = 2;
+    CPU_AND_NPU = 3;
+}
+
+/**
+ * Tensor descriptor
+ */
+message Tensor {
+    string name = 1;              // Input/output name
+    DataType dtype = 2;           // Data type
+    repeated int64 shape = 3;     // Dimensions
+    bytes data = 4;               // Tensor data (serialized)
+}
+
+/**
+ * Model metadata
+ */
+message ModelMetadata {
+    string model_id = 1;          // Unique model identifier (hash-based)
+    string model_format = 2;      // "coreml", "onnx"
+    repeated string input_names = 3;
+    repeated string output_names = 4;
+    map<string, string> metadata = 5;  // Additional metadata
+}
+
+/**
+ * Inference configuration
+ */
+message InferenceConfig {
+    ComputeUnits compute_units = 1;
+    bool enable_profiling = 2;
+    int32 timeout_ms = 3;         // Timeout in milliseconds
+    map<string, string> provider_options = 4;  // Provider-specific options
+}
+
+/**
+ * Debug information (optional)
+ */
+message DebugInfo {
+    string provider_used = 1;     // Which provider executed
+    int64 inference_time_us = 2;  // Inference time in microseconds
+    int64 total_time_us = 3;      // Total time including overhead
+    map<string, string> metrics = 4;  // Additional metrics
+}
+
+// ============================================================================
+// Named Pipe Protocol Messages
+// ============================================================================
+
+/**
+ * Request envelope for named pipe
+ */
+message PipeRequestEnvelope {
+    string request_id = 1;        // Client-generated request ID
+    oneof request {
+        HealthCheckRequest health_check = 10;
+        RegisterModelRequest register_model = 11;
+        UnregisterModelRequest unregister_model = 12;
+        PredictRequest predict = 13;
+        ListModelsRequest list_models = 14;
+        GetCapabilitiesRequest get_capabilities = 15;
+    }
+}
+
+/**
+ * Response envelope for named pipe
+ */
+message PipeResponseEnvelope {
+    string request_id = 1;        // Echo of request_id
+    ErrorStatus status = 2;       // Success or error
+    oneof response {
+        HealthCheckResponse health_check = 10;
+        RegisterModelResponse register_model = 11;
+        UnregisterModelResponse unregister_model = 12;
+        PredictResponse predict = 13;
+        ListModelsResponse list_models = 14;
+        GetCapabilitiesResponse get_capabilities = 15;
+    }
+}
+
+// ============================================================================
+// Request/Response Pairs
+// ============================================================================
+
+/**
+ * Health check - verify service is running
+ */
+message HealthCheckRequest {
+    // Empty request
+}
+
+message HealthCheckResponse {
+    string version = 1;           // Runtime version
+    bool ready = 2;               // Service ready to accept requests
+}
+
+/**
+ * Register a model for inference
+ */
+message RegisterModelRequest {
+    string model_path = 1;        // Path to .mlmodel, .mlpackage, or .onnx
+    bytes model_data = 2;         // Or in-memory model data
+    string cache_key = 3;         // Optional cache key override
+}
+
+message RegisterModelResponse {
+    string model_id = 1;          // Generated model ID
+    ModelMetadata metadata = 2;   // Model metadata
+}
+
+/**
+ * Unregister a model
+ */
+message UnregisterModelRequest {
+    string model_id = 1;
+}
+
+message UnregisterModelResponse {
+    bool success = 1;
+}
+
+/**
+ * Run inference on a model
+ */
+message PredictRequest {
+    string model_id = 1;
+    repeated Tensor inputs = 2;
+    InferenceConfig config = 3;
+}
+
+message PredictResponse {
+    repeated Tensor outputs = 1;
+    DebugInfo debug_info = 2;     // Optional debug information
+}
+
+/**
+ * List all registered models
+ */
+message ListModelsRequest {
+    // Empty request
+}
+
+message ListModelsResponse {
+    repeated ModelMetadata models = 1;
+}
+
+/**
+ * Get provider capabilities
+ */
+message GetCapabilitiesRequest {
+    string provider_name = 1;     // Optional: specific provider, or empty for all
+}
+
+message ProviderCapabilities {
+    string provider_name = 1;
+    string provider_version = 2;
+    ComputeUnits compute_unit = 3;
+    string device_name = 4;
+    repeated string supported_ops = 5;
+
+    // Flags
+    bool supports_fp32 = 10;
+    bool supports_fp16 = 11;
+    bool supports_int8 = 12;
+    bool supports_dynamic_shapes = 13;
+    bool supports_batching = 14;
+
+    // Limits
+    int32 max_tensor_rank = 20;
+    int64 max_tensor_dimension = 21;
+    int64 max_model_size_bytes = 22;
+    int32 max_batch_size = 23;
+    int64 max_device_memory_bytes = 24;
+
+    // Performance
+    float relative_performance = 30;
+}
+
+message GetCapabilitiesResponse {
+    repeated ProviderCapabilities providers = 1;
+}
+
+// ============================================================================
+// Events (Future - for streaming/async)
+// ============================================================================
+
+message ProgressEvent {
+    string model_id = 1;
+    string operation = 2;         // "loading", "converting", "compiling"
+    float progress = 3;           // 0.0 - 1.0
+}

@@ -1,0 +1,59 @@
+{
+  "version": "1.0",
+  "runtime": {
+    "service_name": "CoreMLWin Runtime Service",
+    "version": "0.1.0",
+    "log_level": "info",
+    "enable_telemetry": false
+  },
+  "ipc": {
+    "transport": "named_pipe",
+    "pipe_name": "\\\\.\\pipe\\coremlwin_runtime",
+    "max_connections": 32,
+    "timeout_ms": 30000,
+    "grpc": {
+      "enabled": false,
+      "host": "127.0.0.1",
+      "port": 50051
+    }
+  },
+  "cache": {
+    "enabled": true,
+    "cache_dir": "%LOCALAPPDATA%\\CoreMLWin\\cache",
+    "max_size_mb": 1024,
+    "ttl_hours": 168
+  },
+  "logging": {
+    "log_dir": "%LOCALAPPDATA%\\CoreMLWin\\logs",
+    "max_file_size_mb": 10,
+    "max_files": 5,
+    "console_output": true
+  },
+  "providers": {
+    "search_paths": [
+      "%ProgramFiles%\\CoreMLWin\\providers",
+      "%LOCALAPPDATA%\\CoreMLWin\\providers"
+    ],
+    "enabled": [
+      "cpu",
+      "directml",
+      "openvino"
+    ],
+    "default_fallback": true
+  },
+  "model_conversion": {
+    "worker_timeout_ms": 60000,
+    "max_workers": 2,
+    "cache_converted": true
+  },
+  "performance": {
+    "warmup_on_register": false,
+    "session_pool_size": 4,
+    "thread_pool_size": 0
+  },
+  "security": {
+    "require_admin": false,
+    "sandbox_workers": true,
+    "allowed_model_paths": []
+  }
+}
