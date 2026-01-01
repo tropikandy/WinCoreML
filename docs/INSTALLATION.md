@@ -108,7 +108,7 @@ choco pin add -n=coremlwin --version=0.1.0
 **Traditional installer for enterprise environments**
 
 ### Download:
-- [CoreMLWin-0.1.0-x64.msi](https://github.com/user/WinCoreML/releases/latest)
+- [CoreMLWin-0.1.0-x64.msi](https://github.com/tropikandy/WinCoreML/releases/latest)
 
 ### Install:
 
@@ -156,7 +156,7 @@ msiexec /i \\server\share\CoreMLWin-0.1.0-x64.msi /quiet
 **No installation required - extract and run!**
 
 ### Download:
-- [CoreMLWin-0.1.0-portable-x64.zip](https://github.com/user/WinCoreML/releases/latest)
+- [CoreMLWin-0.1.0-portable-x64.zip](https://github.com/tropikandy/WinCoreML/releases/latest)
 
 ### Setup:
 ```powershell
@@ -458,7 +458,7 @@ pip install coremlwin --force-reinstall
 ## 📞 Support
 
 - **Documentation**: `C:\Program Files\CoreMLWin\docs\`
-- **GitHub Issues**: https://github.com/user/WinCoreML/issues
+- **GitHub Issues**: https://github.com/tropikandy/WinCoreML/issues
 - **Email**: support@coremlwin.com
 
 ---

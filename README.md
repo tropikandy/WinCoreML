@@ -30,7 +30,7 @@ winget install CoreMLWin.UniversalMLRuntime
 
 ### Option 2: MSI Installer
 
-Download from [Releases](https://github.com/user/WinCoreML/releases) and run:
+Download from [Releases](https://github.com/tropikandy/WinCoreML/releases) and run:
 
 ```powershell
 msiexec /i CoreMLWin-0.1.0-x64.msi
@@ -38,7 +38,7 @@ msiexec /i CoreMLWin-0.1.0-x64.msi
 
 ### Option 3: Portable (No Installation)
 
-Download ZIP from [Releases](https://github.com/user/WinCoreML/releases), extract, and run:
+Download ZIP from [Releases](https://github.com/tropikandy/WinCoreML/releases), extract, and run:
 
 ```powershell
 .\start-service.bat
@@ -161,7 +161,7 @@ print(output)
 
 ```powershell
 # 1. Clone repository
-git clone https://github.com/user/WinCoreML.git
+git clone https://github.com/tropikandy/WinCoreML.git
 cd WinCoreML
 
 # 2. Download ONNX Runtime
@@ -329,10 +329,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## 💻 Development & Disclaimer
+
+CoreMLWin was developed using modern AI-assisted development practices. Architecture and design decisions by Andreas Larsson; implementation assisted by AI language models. All code has been reviewed, tested, and validated for production use.
+
+**Not affiliated with Apple Inc.** CoreML is a trademark of Apple Inc.
+
+---
+
 ## 📞 Support
 
-- **🐛 Bug Reports**: [GitHub Issues](https://github.com/user/WinCoreML/issues)
-- **💬 Discussions**: [GitHub Discussions](https://github.com/user/WinCoreML/discussions)
+- **🐛 Bug Reports**: [GitHub Issues](https://github.com/tropikandy/WinCoreML/issues)
+- **💬 Discussions**: [GitHub Discussions](https://github.com/tropikandy/WinCoreML/discussions)
 - **📧 Email**: Contact via GitHub profile
 
 ---
@@ -348,8 +356,8 @@ If you find CoreMLWin useful, please consider giving it a star ⭐
 </p>
 
 <p align="center">
-  <a href="https://github.com/user/WinCoreML">GitHub</a> •
+  <a href="https://github.com/tropikandy/WinCoreML">GitHub</a> •
   <a href="docs/INSTALLATION.md">Install</a> •
-  <a href="https://github.com/user/WinCoreML/releases">Download</a> •
-  <a href="https://github.com/user/WinCoreML/issues">Report Bug</a>
+  <a href="https://github.com/tropikandy/WinCoreML/releases">Download</a> •
+  <a href="https://github.com/tropikandy/WinCoreML/issues">Report Bug</a>
 </p>

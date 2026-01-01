@@ -47,7 +47,7 @@ Instances of abusive behavior may be reported by contacting the project maintain
 ### Reporting Bugs
 
 **Before submitting a bug report:**
-1. Check the [GitHub Issues](https://github.com/user/WinCoreML/issues) for existing reports
+1. Check the [GitHub Issues](https://github.com/tropikandy/WinCoreML/issues) for existing reports
 2. Ensure you're using the latest version
 3. Collect relevant information (OS version, GPU model, error logs)
 
@@ -443,7 +443,7 @@ pytest tests/test_integration.py -v
 **DO NOT** open a public GitHub issue for security vulnerabilities.
 
 Instead:
-1. Email security concerns to: [SECURITY_EMAIL_HERE]
+1. Email security concerns to: aelarsson+coremlwin-security@gmail.com
 2. Use subject line: "SECURITY: [brief description]"
 3. We'll respond within 48 hours
 
@@ -479,9 +479,9 @@ Contributors will be:
 
 ## ❓ Questions?
 
-- **General questions**: [GitHub Discussions](https://github.com/user/WinCoreML/discussions)
-- **Bug reports**: [GitHub Issues](https://github.com/user/WinCoreML/issues)
-- **Security**: [SECURITY_EMAIL_HERE]
+- **General questions**: [GitHub Discussions](https://github.com/tropikandy/WinCoreML/discussions)
+- **Bug reports**: [GitHub Issues](https://github.com/tropikandy/WinCoreML/issues)
+- **Security**: aelarsson+coremlwin-security@gmail.com
 
 ---
 

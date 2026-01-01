@@ -4,14 +4,14 @@ PackageIdentifier: CoreMLWin.UniversalMLRuntime
 PackageVersion: 0.1.0
 PackageLocale: en-US
 Publisher: CoreMLWin Project
-PublisherUrl: https://github.com/user/WinCoreML
-PublisherSupportUrl: https://github.com/user/WinCoreML/issues
+PublisherUrl: https://github.com/tropikandy/WinCoreML
+PublisherSupportUrl: https://github.com/tropikandy/WinCoreML/issues
 # PrivacyUrl:
 Author: CoreMLWin Contributors
 PackageName: CoreMLWin - Universal ML Runtime
-PackageUrl: https://github.com/user/WinCoreML
+PackageUrl: https://github.com/tropikandy/WinCoreML
 License: MIT
-LicenseUrl: https://github.com/user/WinCoreML/blob/main/LICENSE
+LicenseUrl: https://github.com/tropikandy/WinCoreML/blob/main/LICENSE
 Copyright: Copyright (c) 2024 CoreMLWin Project
 # CopyrightUrl:
 ShortDescription: Universal Machine Learning Runtime for Windows with DirectML GPU acceleration

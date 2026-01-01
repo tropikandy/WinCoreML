@@ -69,7 +69,7 @@ git push origin v0.1.0
 
 #### 3. Create GitHub Release (Web UI)
 
-1. Go to: https://github.com/user/WinCoreML/releases/new
+1. Go to: https://github.com/tropikandy/WinCoreML/releases/new
 2. Select tag: `v0.1.0`
 3. Release title: `CoreMLWin v0.1.0 - Universal ML Runtime for Windows`
 4. Description:
@@ -407,10 +407,10 @@ Use `wingetcreate` tool:
 winget install wingetcreate
 
 # Create new package submission
-wingetcreate new --urls https://github.com/user/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi --version 0.1.0
+wingetcreate new --urls https://github.com/tropikandy/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi --version 0.1.0
 
 # Update existing package
-wingetcreate update CoreMLWin.UniversalMLRuntime --urls https://github.com/user/WinCoreML/releases/download/v0.2.0/CoreMLWin-0.2.0-x64.msi --version 0.2.0 --submit
+wingetcreate update CoreMLWin.UniversalMLRuntime --urls https://github.com/tropikandy/WinCoreML/releases/download/v0.2.0/CoreMLWin-0.2.0-x64.msi --version 0.2.0 --submit
 ```
 
 ---
@@ -480,7 +480,7 @@ Error: Package already exists
 ## Metrics & Analytics
 
 ### GitHub Releases
-- View download counts: https://github.com/user/WinCoreML/releases
+- View download counts: https://github.com/tropikandy/WinCoreML/releases
 - Per-asset downloads shown on release page
 - Use GitHub Insights for traffic data
 
@@ -519,6 +519,6 @@ Error: Package already exists
 
 ## Support
 
-- **GitHub Issues**: https://github.com/user/WinCoreML/issues
+- **GitHub Issues**: https://github.com/tropikandy/WinCoreML/issues
 - **Winget Issues**: https://github.com/microsoft/winget-pkgs/issues
-- **Discussion**: https://github.com/user/WinCoreML/discussions
+- **Discussion**: https://github.com/tropikandy/WinCoreML/discussions

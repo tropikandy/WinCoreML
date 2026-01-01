@@ -309,7 +309,7 @@ pip install coremlwin
 - On-premise deployment assistance
 
 **For Contributors:**
-- GitHub: github.com/user/WinCoreML
+- GitHub: github.com/tropikandy/WinCoreML
 - Open source, MIT licensed (runtime)
 - Commercial licensing for proprietary features
 
@@ -318,7 +318,7 @@ pip install coremlwin
 ### Links
 
 🌐 **Website**: coremlwin.dev (coming soon)
-📚 **Docs**: github.com/user/WinCoreML/docs
+📚 **Docs**: github.com/tropikandy/WinCoreML/docs
 💬 **Discord**: discord.gg/coremlwin (coming soon)
 🐦 **Twitter**: @CoreMLWin (coming soon)
 

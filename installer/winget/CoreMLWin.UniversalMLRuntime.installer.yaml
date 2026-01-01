@@ -21,7 +21,7 @@ Capabilities:
 ReleaseDate: 2024-01-15
 Installers:
 - Architecture: x64
-  InstallerUrl: https://github.com/user/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi
+  InstallerUrl: https://github.com/tropikandy/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi
   InstallerSha256: <HASH_PLACEHOLDER>
   ProductCode: '{12345678-1234-1234-1234-123456789ABC}'
   InstallerSwitches:

@@ -81,7 +81,7 @@ git push origin v0.1.0
 
 ### 5. Wait for GitHub Actions
 
-Monitor at: https://github.com/user/WinCoreML/actions
+Monitor at: https://github.com/tropikandy/WinCoreML/actions
 
 GitHub Actions will:
 - Build packages in CI
@@ -91,7 +91,7 @@ GitHub Actions will:
 
 ### 6. Verify GitHub Release
 
-Check: https://github.com/user/WinCoreML/releases
+Check: https://github.com/tropikandy/WinCoreML/releases
 
 Should have:
 - ✅ Release v0.1.0 published
@@ -115,7 +115,7 @@ $sha256 = Get-Content "installer\wix\output\CoreMLWin-0.1.0-x64.msi.sha256"
 # Prepare winget submission (creates PR automatically)
 .\tools\prepare-winget-submission.ps1 `
   -Version 0.1.0 `
-  -InstallerUrl https://github.com/user/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi `
+  -InstallerUrl https://github.com/tropikandy/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi `
   -SHA256Hash $sha256 `
   -CreatePR
 ```
@@ -136,7 +136,7 @@ $sha256 = Get-Content "installer\wix\output\CoreMLWin-0.1.0-x64.msi.sha256"
    ```powershell
    ..\WinCoreML\tools\prepare-winget-submission.ps1 `
      -Version 0.1.0 `
-     -InstallerUrl https://github.com/user/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi `
+     -InstallerUrl https://github.com/tropikandy/WinCoreML/releases/download/v0.1.0/CoreMLWin-0.1.0-x64.msi `
      -SHA256Hash YOUR_HASH_HERE `
      -WingetPkgsRepo .\winget-pkgs
    ```
@@ -181,7 +181,7 @@ $sha256 = Get-Content "installer\wix\output\CoreMLWin-0.1.0-x64.msi.sha256"
 ### Monitor Downloads
 
 **GitHub Releases**:
-- View at: https://github.com/user/WinCoreML/releases
+- View at: https://github.com/tropikandy/WinCoreML/releases
 - Download counts shown per asset
 
 **Winget** (no public metrics):
@@ -212,9 +212,9 @@ Universal ML Runtime for Windows with DirectML GPU acceleration.
 📦 Install:
 winget install CoreMLWin.UniversalMLRuntime
 
-Or download: https://github.com/user/WinCoreML/releases/tag/v0.1.0
+Or download: https://github.com/tropikandy/WinCoreML/releases/tag/v0.1.0
 
-🔗 GitHub: https://github.com/user/WinCoreML
+🔗 GitHub: https://github.com/tropikandy/WinCoreML
 ```
 
 ---
@@ -223,7 +223,7 @@ Or download: https://github.com/user/WinCoreML/releases/tag/v0.1.0
 
 ### GitHub Actions Fails
 
-**Check logs**: https://github.com/user/WinCoreML/actions
+**Check logs**: https://github.com/tropikandy/WinCoreML/actions
 
 Common issues:
 - ONNX Runtime download failed → Retry workflow
@@ -277,4 +277,4 @@ The script will verify most of these automatically!
 
 ---
 
-**Need help?** Open an issue: https://github.com/user/WinCoreML/issues
+**Need help?** Open an issue: https://github.com/tropikandy/WinCoreML/issues
