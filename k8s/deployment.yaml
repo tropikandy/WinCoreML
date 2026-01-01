@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coremlwin-runtime
+  namespace: ml-inference
+  labels:
+    app: coremlwin
+    component: runtime
+    version: v0.1.0
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: coremlwin
+      component: runtime
+  
+  template:
+    metadata:
+      labels:
+        app: coremlwin
+        component: runtime
+        version: v0.1.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    
+    spec:
+      nodeSelector:
+        kubernetes.io/os: windows
+        gpu.enabled: "true"
+      
+      containers:
+      - name: coremlwin-runtime
+        image: coremlwin/runtime:0.1.0
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - name: runtime
+          containerPort: 9001
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        
+        env:
+        - name: COREMLWIN_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: coremlwin-config
+              key: log_level
+        - name: COREMLWIN_CACHE_DIR
+          value: "/cache"
+        - name: COREMLWIN_MAX_CLIENTS
+          value: "100"
+        
+        resources:
+          requests:
+            memory: "4Gi"
+            cpu: "2000m"
+          limits:
+            memory: "8Gi"
+            cpu: "4000m"
+        
+        volumeMounts:
+        - name: cache
+          mountPath: /cache
+        - name: models
+          mountPath: /models
+          readOnly: true
+        - name: config
+          mountPath: /coremlwin/config
+          readOnly: true
+        
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "from coremlwin_client import CoreMLWinClient; CoreMLWinClient().health()"
+          initialDelaySeconds: 30
+          periodSeconds: 30
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "from coremlwin_client import CoreMLWinClient; assert CoreMLWinClient().health()['ready']"
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 3
+          successThreshold: 1
+          failureThreshold: 3
+      
+      volumes:
+      - name: cache
+        persistentVolumeClaim:
+          claimName: coremlwin-cache-pvc
+      - name: models
+        persistentVolumeClaim:
+          claimName: coremlwin-models-pvc
+      - name: config
+        configMap:
+          name: coremlwin-config
+          items:
+          - key: runtime_config.yaml
+            path: runtime_config.yaml
+      
+      restartPolicy: Always
+      
+      # Pod anti-affinity for high availability
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - coremlwin
+              topologyKey: kubernetes.io/hostname
