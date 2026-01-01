@@ -310,7 +310,7 @@ Currently single-input only. Batching support coming in Phase 2.
 
 ## Getting Help
 
-- **GitHub Issues**: https://github.com/yourusername/WinCoreML/issues
+- **GitHub Issues**: https://github.com/tropikandy/WinCoreML/issues
 - **Logs**: Check `./cache/logs/` for runtime logs
 - **Verbose Mode**: Run service with `--dev` flag
 

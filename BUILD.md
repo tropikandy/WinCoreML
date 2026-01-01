@@ -339,6 +339,6 @@ After building successfully:
 
 ## Getting Help
 
-- **Build Issues**: https://github.com/yourusername/WinCoreML/issues
-- **Documentation**: https://github.com/yourusername/WinCoreML/wiki
+- **Build Issues**: https://github.com/tropikandy/WinCoreML/issues
+- **Documentation**: https://github.com/tropikandy/WinCoreML/wiki
 - **Logs**: Check `./cache/logs/` directory for runtime logs

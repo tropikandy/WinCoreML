@@ -54,7 +54,7 @@ jobs:
             - Windows 10 version 1903+ or Windows 11
             - DirectX 12 capable GPU (for acceleration)
             - Visual C++ Redistributable 2022
-            - Python 3.8+ (for Python SDK)
+            - Python 3.10+ (for Python SDK)
 
             ### 🚀 Quick Start
 

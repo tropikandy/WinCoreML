@@ -19,7 +19,7 @@ setup(
     description="Python SDK for Universal ML Runtime - Run PyTorch, TensorFlow, CoreML, ONNX on Windows",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/yourusername/WinCoreML",
+    url="https://github.com/tropikandy/WinCoreML",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
