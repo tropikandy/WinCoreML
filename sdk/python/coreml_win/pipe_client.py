@@ -106,10 +106,12 @@ class NamedPipeClient:
         if self.pipe_handle:
             try:
                 win32file.CloseHandle(self.pipe_handle)
-            except:
-                pass
-            self.pipe_handle = None
-            logger.info("Disconnected from pipe")
+            except (pywintypes.error, OSError) as e:
+                # Log but don't raise - disconnection errors are non-fatal
+                logger.warning(f"Error closing pipe handle: {e}")
+            finally:
+                self.pipe_handle = None
+                logger.info("Disconnected from pipe")
 
     def send_message(self, data: bytes) -> bytes:
         """

@@ -9,9 +9,12 @@
 #include <sstream>
 #include <filesystem>
 #include <chrono>
+#include <iomanip>
 
 #ifdef _WIN32
 #include <windows.h>
+#include <wincrypt.h>  // For CryptoAPI (SHA-256)
+#pragma comment(lib, "advapi32.lib")  // Link CryptoAPI
 #endif
 
 namespace fs = std::filesystem;
@@ -629,15 +632,70 @@ CmwErrorCode RuntimeState::RunConverterWorker(
 }
 
 std::string RuntimeState::ComputeModelHash(const std::string& model_path) {
-    // Simple hash based on path and timestamp for now
-    // In production, would hash file contents
-    auto now = std::chrono::system_clock::now().time_since_epoch().count();
-    std::hash<std::string> hasher;
-    size_t hash = hasher(model_path) ^ hasher(std::to_string(now));
+    // SECURITY FIX: Compute SHA-256 of file contents instead of timestamp-based hash
+    // This prevents:
+    // - Same file getting different IDs on each registration
+    // - Different files potentially getting same ID (hash collision)
+    // - Cache poisoning attacks
 
+    std::ifstream file(model_path, std::ios::binary);
+    if (!file.is_open()) {
+        // Fallback to path hash if file can't be read
+        std::hash<std::string> hasher;
+        return std::to_string(hasher(model_path));
+    }
+
+    // Read file in chunks and compute SHA-256
+    constexpr size_t CHUNK_SIZE = 8192;
+    std::vector<char> buffer(CHUNK_SIZE);
+
+#ifdef _WIN32
+    // Use Windows CryptoAPI for SHA-256
+    HCRYPTPROV hProv = 0;
+    HCRYPTHASH hHash = 0;
+
+    if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+        // Fallback if crypto not available
+        std::hash<std::string> hasher;
+        return std::to_string(hasher(model_path));
+    }
+
+    if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash)) {
+        CryptReleaseContext(hProv, 0);
+        std::hash<std::string> hasher;
+        return std::to_string(hasher(model_path));
+    }
+
+    // Hash file contents
+    while (file.read(buffer.data(), CHUNK_SIZE) || file.gcount() > 0) {
+        CryptHashData(hHash, reinterpret_cast<BYTE*>(buffer.data()),
+                      static_cast<DWORD>(file.gcount()), 0);
+    }
+
+    // Get hash value
+    BYTE hash[32];  // SHA-256 produces 32 bytes
+    DWORD hash_len = 32;
+    CryptGetHashParam(hHash, HP_HASHVAL, hash, &hash_len, 0);
+
+    // Convert to hex string
     std::stringstream ss;
-    ss << std::hex << hash;
+    for (DWORD i = 0; i < hash_len; i++) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(hash[i]);
+    }
+
+    // Cleanup
+    CryptDestroyHash(hHash);
+    CryptReleaseContext(hProv, 0);
+
     return ss.str();
+#else
+    // For non-Windows, use simple hash for now
+    // TODO: Add OpenSSL SHA-256 for Linux
+    std::hash<std::string> hasher;
+    std::string content((std::istreambuf_iterator<char>(file)),
+                        std::istreambuf_iterator<char>());
+    return std::to_string(hasher(content));
+#endif
 }
 
 CmwErrorCode RuntimeState::GetOrCreateExecutor(
