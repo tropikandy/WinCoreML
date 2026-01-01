@@ -14,6 +14,7 @@ try:
     import win32file
     import win32pipe
     import pywintypes
+
     WINDOWS_AVAILABLE = True
 except ImportError:
     WINDOWS_AVAILABLE = False
@@ -37,9 +38,7 @@ class NamedPipeClient:
     """
 
     def __init__(
-        self,
-        pipe_name: str = r"\\.\pipe\coremlwin_runtime",
-        timeout_ms: int = 30000
+        self, pipe_name: str = r"\\.\pipe\coremlwin_runtime", timeout_ms: int = 30000
     ):
         """
         Initialize named pipe client.
@@ -77,15 +76,12 @@ class NamedPipeClient:
                 None,
                 win32file.OPEN_EXISTING,
                 0,
-                None
+                None,
             )
 
             # Set pipe mode to message mode
             win32pipe.SetNamedPipeHandleState(
-                self.pipe_handle,
-                win32pipe.PIPE_READMODE_BYTE,
-                None,
-                None
+                self.pipe_handle, win32pipe.PIPE_READMODE_BYTE, None, None
             )
 
             logger.info(f"Connected to pipe: {self.pipe_name}")
@@ -97,9 +93,7 @@ class NamedPipeClient:
                     f"Runtime service not running: {error_msg}"
                 )
             else:
-                raise IPCFailedError(
-                    f"Failed to connect to pipe: {error_msg}"
-                )
+                raise IPCFailedError(f"Failed to connect to pipe: {error_msg}")
 
     def disconnect(self) -> None:
         """Disconnect from named pipe."""
@@ -132,7 +126,7 @@ class NamedPipeClient:
         try:
             # Send message with length prefix (4 bytes little-endian)
             length = len(data)
-            length_bytes = struct.pack('<I', length)
+            length_bytes = struct.pack("<I", length)
             message = length_bytes + data
 
             # Write to pipe
@@ -144,7 +138,7 @@ class NamedPipeClient:
             if result != 0:
                 raise IPCFailedError(f"Pipe read failed: {result}")
 
-            response_length = struct.unpack('<I', length_bytes)[0]
+            response_length = struct.unpack("<I", length_bytes)[0]
             logger.debug(f"Response length: {response_length}")
 
             if response_length > 10 * 1024 * 1024:  # 10MB sanity check
@@ -152,8 +146,7 @@ class NamedPipeClient:
 
             # Read response data
             result, response_data = win32file.ReadFile(
-                self.pipe_handle,
-                response_length
+                self.pipe_handle, response_length
             )
 
             if result != 0:

@@ -28,9 +28,7 @@ class RuntimeClient:
     """
 
     def __init__(
-        self,
-        pipe_name: str = r"\\.\pipe\coremlwin_runtime",
-        timeout_ms: int = 30000
+        self, pipe_name: str = r"\\.\pipe\coremlwin_runtime", timeout_ms: int = 30000
     ):
         """
         Initialize runtime client.
@@ -82,7 +80,7 @@ class RuntimeClient:
         self,
         model_path: Union[str, Path],
         cache_key: Optional[str] = None,
-        benchmark: bool = True
+        benchmark: bool = True,
     ) -> str:
         """
         Register a model for inference.
@@ -119,8 +117,7 @@ class RuntimeClient:
 
         # Create protobuf request
         request_bytes = proto_utils.create_register_model_request(
-            str(model_path),
-            cache_key or ""
+            str(model_path), cache_key or ""
         )
 
         # Send and receive
@@ -131,7 +128,7 @@ class RuntimeClient:
         result = proto_utils.extract_register_model_response(envelope)
 
         logger.info(f"Model registered: {result['model_id']}")
-        return result['model_id']
+        return result["model_id"]
 
     def unregister_model(self, model_id: str) -> bool:
         """
@@ -157,14 +154,14 @@ class RuntimeClient:
         envelope = proto_utils.parse_response(response_bytes)
         result = proto_utils.extract_unregister_model_response(envelope)
 
-        return result['success']
+        return result["success"]
 
     def predict(
         self,
         model_id: str,
         inputs: Dict[str, np.ndarray],
         compute_units: str = "ALL",
-        timeout_ms: int = 5000
+        timeout_ms: int = 5000,
     ) -> Dict[str, np.ndarray]:
         """
         Run inference on a model.
@@ -194,14 +191,13 @@ class RuntimeClient:
                 raise TypeError(f"Input '{name}' must be numpy array")
 
         logger.info(f"Running inference on model: {model_id}")
-        logger.info(f"Input shapes: {{{', '.join(f'{k}: {v.shape}' for k, v in inputs.items())}}}")
+        logger.info(
+            f"Input shapes: {{{', '.join(f'{k}: {v.shape}' for k, v in inputs.items())}}}"
+        )
 
         # Create protobuf request
         request_bytes = proto_utils.create_predict_request(
-            model_id,
-            inputs,
-            compute_units,
-            timeout_ms
+            model_id, inputs, compute_units, timeout_ms
         )
 
         # Send and receive
@@ -211,8 +207,10 @@ class RuntimeClient:
         envelope = proto_utils.parse_response(response_bytes)
         result = proto_utils.extract_predict_response(envelope)
 
-        logger.info(f"Inference complete: {result['debug_info']['inference_time_us']} µs")
-        return result['outputs']
+        logger.info(
+            f"Inference complete: {result['debug_info']['inference_time_us']} µs"
+        )
+        return result["outputs"]
 
     def get_model_info(self, model_id: str) -> Dict[str, Any]:
         """
@@ -254,15 +252,15 @@ class RuntimeClient:
                     {
                         "provider": "CPUExecutionProvider",
                         "mean_latency_ms": 45.2,
-                        "success": True
+                        "success": True,
                     },
                     {
                         "provider": "DmlExecutionProvider",
                         "mean_latency_ms": 12.5,
-                        "success": True
-                    }
-                ]
-            }
+                        "success": True,
+                    },
+                ],
+            },
         }
 
     def list_models(self) -> List[Dict[str, Any]]:
@@ -284,11 +282,10 @@ class RuntimeClient:
         envelope = proto_utils.parse_response(response_bytes)
         result = proto_utils.extract_list_models_response(envelope)
 
-        return result['models']
+        return result["models"]
 
     def get_capabilities(
-        self,
-        provider_name: Optional[str] = None
+        self, provider_name: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         Get provider capabilities.
@@ -316,7 +313,7 @@ class RuntimeClient:
                 "device_name": "DirectML",
                 "supports_fp32": True,
                 "supports_fp16": True,
-            }
+            },
         ]
 
     def _ensure_connected(self) -> None:

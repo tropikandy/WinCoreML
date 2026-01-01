@@ -20,6 +20,7 @@ except ImportError:
     # Placeholder for when protobuf files aren't generated yet
     pb = None
     import warnings
+
     warnings.warn(
         "Protobuf files not generated. Run: "
         "protoc --python_out=sdk/python/coreml_win --proto_path=protos protos/coremlwin_runtime.proto"
@@ -28,23 +29,23 @@ except ImportError:
 
 # NumPy dtype to protobuf DataType mapping
 DTYPE_TO_PROTO = {
-    np.float32: 'DTYPE_FLOAT32',
-    np.float16: 'DTYPE_FLOAT16',
-    np.int32: 'DTYPE_INT32',
-    np.int64: 'DTYPE_INT64',
-    np.int8: 'DTYPE_INT8',
-    np.uint8: 'DTYPE_UINT8',
-    np.bool_: 'DTYPE_BOOL',
+    np.float32: "DTYPE_FLOAT32",
+    np.float16: "DTYPE_FLOAT16",
+    np.int32: "DTYPE_INT32",
+    np.int64: "DTYPE_INT64",
+    np.int8: "DTYPE_INT8",
+    np.uint8: "DTYPE_UINT8",
+    np.bool_: "DTYPE_BOOL",
 }
 
 PROTO_TO_DTYPE = {
-    'DTYPE_FLOAT32': np.float32,
-    'DTYPE_FLOAT16': np.float16,
-    'DTYPE_INT32': np.int32,
-    'DTYPE_INT64': np.int64,
-    'DTYPE_INT8': np.int8,
-    'DTYPE_UINT8': np.uint8,
-    'DTYPE_BOOL': np.bool_,
+    "DTYPE_FLOAT32": np.float32,
+    "DTYPE_FLOAT16": np.float16,
+    "DTYPE_INT32": np.int32,
+    "DTYPE_INT64": np.int64,
+    "DTYPE_INT8": np.int8,
+    "DTYPE_UINT8": np.uint8,
+    "DTYPE_BOOL": np.bool_,
 }
 
 
@@ -58,7 +59,7 @@ def numpy_to_tensor(name: str, array: np.ndarray):
 
     # Set dtype
     dtype_key = type(array.flat[0])
-    tensor.dtype = getattr(pb, DTYPE_TO_PROTO.get(dtype_key, 'DTYPE_FLOAT32'))
+    tensor.dtype = getattr(pb, DTYPE_TO_PROTO.get(dtype_key, "DTYPE_FLOAT32"))
 
     # Set shape
     tensor.shape.extend(array.shape)
@@ -100,10 +101,7 @@ def create_health_check_request() -> bytes:
     return envelope.SerializeToString()
 
 
-def create_register_model_request(
-    model_path: str,
-    cache_key: str = ""
-) -> bytes:
+def create_register_model_request(model_path: str, cache_key: str = "") -> bytes:
     """Create RegisterModel request."""
     if pb is None:
         raise RuntimeError("Protobuf files not generated")
@@ -123,7 +121,7 @@ def create_predict_request(
     model_id: str,
     inputs: Dict[str, np.ndarray],
     compute_units: str = "ALL",
-    timeout_ms: int = 5000
+    timeout_ms: int = 5000,
 ) -> bytes:
     """Create Predict request."""
     if pb is None:
@@ -184,6 +182,7 @@ def parse_response(response_bytes: bytes) -> Any:
     # Check status
     if envelope.status.code != 0:  # CMW_SUCCESS
         from .errors import from_error_code
+
         error = from_error_code(envelope.status.code)
         raise error(envelope.status.message)
 
@@ -193,10 +192,7 @@ def parse_response(response_bytes: bytes) -> Any:
 def extract_health_response(envelope) -> Dict[str, Any]:
     """Extract HealthCheck response."""
     resp = envelope.health_check
-    return {
-        "version": resp.version,
-        "ready": resp.ready
-    }
+    return {"version": resp.version, "ready": resp.ready}
 
 
 def extract_register_model_response(envelope) -> Dict[str, Any]:
@@ -207,14 +203,16 @@ def extract_register_model_response(envelope) -> Dict[str, Any]:
     # Extract benchmarks
     benchmarks = []
     for bench in metadata.benchmarks:
-        benchmarks.append({
-            "provider": bench.provider_name,
-            "success": bench.success,
-            "mean_latency_ms": bench.mean_latency_ms,
-            "std_latency_ms": bench.std_latency_ms,
-            "speedup_vs_cpu": bench.speedup_vs_cpu,
-            "error": bench.error_message if bench.error_message else None
-        })
+        benchmarks.append(
+            {
+                "provider": bench.provider_name,
+                "success": bench.success,
+                "mean_latency_ms": bench.mean_latency_ms,
+                "std_latency_ms": bench.std_latency_ms,
+                "speedup_vs_cpu": bench.speedup_vs_cpu,
+                "error": bench.error_message if bench.error_message else None,
+            }
+        )
 
     return {
         "model_id": resp.model_id,
@@ -224,10 +222,16 @@ def extract_register_model_response(envelope) -> Dict[str, Any]:
             "input_names": list(metadata.input_names),
             "output_names": list(metadata.output_names),
             "benchmarks": benchmarks,
-            "fastest_provider": metadata.fastest_provider if metadata.fastest_provider else None,
-            "best_latency_ms": metadata.best_latency_ms if metadata.best_latency_ms > 0 else None,
-            "speedup_vs_cpu": metadata.speedup_vs_cpu if metadata.speedup_vs_cpu > 0 else None,
-        }
+            "fastest_provider": (
+                metadata.fastest_provider if metadata.fastest_provider else None
+            ),
+            "best_latency_ms": (
+                metadata.best_latency_ms if metadata.best_latency_ms > 0 else None
+            ),
+            "speedup_vs_cpu": (
+                metadata.speedup_vs_cpu if metadata.speedup_vs_cpu > 0 else None
+            ),
+        },
     }
 
 
@@ -246,10 +250,7 @@ def extract_predict_response(envelope) -> Dict[str, Any]:
         "inference_time_us": resp.debug_info.inference_time_us,
     }
 
-    return {
-        "outputs": outputs,
-        "debug_info": debug_info
-    }
+    return {"outputs": outputs, "debug_info": debug_info}
 
 
 def extract_list_models_response(envelope) -> Dict[str, Any]:
@@ -258,12 +259,14 @@ def extract_list_models_response(envelope) -> Dict[str, Any]:
 
     models = []
     for metadata in resp.models:
-        models.append({
-            "model_id": metadata.model_id,
-            "model_format": metadata.model_format,
-            "input_names": list(metadata.input_names),
-            "output_names": list(metadata.output_names),
-        })
+        models.append(
+            {
+                "model_id": metadata.model_id,
+                "model_format": metadata.model_format,
+                "input_names": list(metadata.input_names),
+                "output_names": list(metadata.output_names),
+            }
+        )
 
     return {"models": models}
 
